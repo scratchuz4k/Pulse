@@ -16,17 +16,33 @@
     <section v-else class="room-section">
       <h2>Room: {{ roomStore.currentRoomName }}</h2>
       <p>SignalR: {{ connectionState }}</p>
-      <button @click="handleLeave">Leave Room</button>
+      <p>LiveKit: {{ isConnected ? 'Connected' : 'Disconnected' }}</p>
+
+      <div class="controls">
+        <button @click="handleLeave">Leave Room</button>
+        <button @click="handleToggleMic" :disabled="!isConnected">
+          Mic: {{ isMicEnabled ? 'On' : 'Off' }}
+        </button>
+      </div>
 
       <h3>Participants</h3>
       <ul>
-        <li v-for="p in roomStore.participants" :key="p.connectionId">
-          {{ p.displayName }} <small>({{ p.connectionId }})</small>
+        <li
+          v-for="p in roomStore.participants"
+          :key="p.connectionId"
+          :class="{ speaking: activeSpeakers.length > 0 }"
+        >
+          {{ p.displayName }}
+          <small>({{ p.connectionId }})</small>
         </li>
       </ul>
 
-      <!-- Plan 01-03 will mount LiveKit audio here -->
-      <div id="livekit-audio-placeholder"></div>
+      <div v-if="activeSpeakers.length > 0" class="active-speakers">
+        <h4>Speaking now:</h4>
+        <ul>
+          <li v-for="identity in activeSpeakers" :key="identity">{{ identity }}</li>
+        </ul>
+      </div>
     </section>
   </div>
 </template>
@@ -37,11 +53,13 @@ import { useAuthStore } from '../stores/auth'
 import { useRoomStore } from '../stores/room'
 import { useAuth } from '../composables/useAuth'
 import { usePresence } from '../composables/usePresence'
+import { useLiveKit } from '../composables/useLiveKit'
 
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const { logout, fetchLiveKitToken } = useAuth()
 const { connect, joinRoom, leaveRoom, disconnect, connectionState } = usePresence()
+const { connect: livekitConnect, disconnect: livekitDisconnect, toggleMic, isConnected, isMicEnabled, activeSpeakers } = useLiveKit()
 
 const roomNameInput = ref('')
 const joining = ref(false)
@@ -53,12 +71,15 @@ async function handleJoin(): Promise<void> {
   joinError.value = ''
   joining.value = true
   try {
-    const tokenData = await fetchLiveKitToken(roomNameInput.value)
-    console.log('LiveKit token:', tokenData.liveKitToken)
-    console.log('LiveKit host:', tokenData.liveKitHost)
+    // 1. Fetch LiveKit token from C# server
+    const { liveKitToken, liveKitHost } = await fetchLiveKitToken(roomNameInput.value)
 
+    // 2. Connect SignalR presence hub
     await connect(SERVER_URL)
     await joinRoom(roomNameInput.value)
+
+    // 3. Connect LiveKit audio
+    await livekitConnect(liveKitToken, liveKitHost)
   } catch (err: unknown) {
     joinError.value = err instanceof Error ? err.message : 'Failed to join room'
   } finally {
@@ -67,11 +88,17 @@ async function handleJoin(): Promise<void> {
 }
 
 async function handleLeave(): Promise<void> {
+  // Disconnect LiveKit first, then presence
+  await livekitDisconnect()
   if (roomStore.currentRoomName) {
     await leaveRoom(roomStore.currentRoomName)
   }
   await disconnect()
   roomStore.clearRoom()
+}
+
+async function handleToggleMic(): Promise<void> {
+  await toggleMic()
 }
 
 async function handleLogout(): Promise<void> {
