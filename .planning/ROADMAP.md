@@ -25,6 +25,7 @@ Each phase delivers a working, runnable slice of the app. By end of Phase 1 you 
 **Goal:** A complete, usable voice room — mic control, deafen, presence list, speaking indicators, room creation.
 **Mode:** mvp
 **Requirements:** VOICE-04, VOICE-05, VOICE-06, ROOM-01, ROOM-02, ROOM-03
+**Plans:** 5 plans
 **Success Criteria:**
 1. User can create a named voice room; it appears in the room list for all connected clients
 2. Push-to-talk mode works — audio only transmits while the configured key is held
@@ -32,6 +33,13 @@ Each phase delivers a working, runnable slice of the app. By end of Phase 1 you 
 4. User can deafen themselves; they stop receiving audio until undeafened
 5. Participant list shows all users in the room and updates live as people join/leave
 6. A visual speaking indicator fires in real time when a participant is transmitting audio
+
+Plans:
+- [x] 02-01-PLAN.md — Server room persistence: Room entity, EF DbSet, GET/POST /rooms, PresenceHub reverse-lookup
+- [x] 02-02-PLAN.md — Mute broadcast: PresenceHub MuteChanged, store isMuted, ParticipantMuted/Unuted listeners, 🔇 icon
+- [ ] 02-03-PLAN.md — Room list wiring: roomStore.rooms, RoomListUpdated listener, voice feed renders all rooms, one-click join
+- [ ] 02-04-PLAN.md — Push-to-talk: globalShortcut IPC, preload bridge, usePtt composable, Settings key-capture UI
+- [ ] 02-05-PLAN.md — Deafen fix + speaking indicators: prevMicEnabled save/restore, ROOM-02 userId matching verified
 
 ---
 

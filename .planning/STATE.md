@@ -10,14 +10,14 @@ progress:
   total_plans: 3
   completed_plans: 3
   percent: 0
-stopped_at: Phase 02, Plan 01 complete — room persistence, GET/POST /rooms, SignalR broadcast
+stopped_at: Phase 02, Plan 02 complete — mute broadcast, isMuted store, ParticipantMuted/Unmuted listeners, mute icon UI
 ---
 
 # Pulse — Project State
 
 ## Current Phase
 
-**Phase 2: Full Room Experience** — In progress (1 plan complete)
+**Phase 2: Full Room Experience** — In progress (2 plans complete)
 
 ## Phase Status
 
@@ -32,13 +32,15 @@ stopped_at: Phase 02, Plan 01 complete — room persistence, GET/POST /rooms, Si
 
 ## Last Action
 
-Phase 02 Plan 01 executed — 2026-06-09 (room persistence: Room entity, AppDbContext, GET/POST /rooms, PresenceHub reverse-lookup)
+Phase 02 Plan 02 executed — 2026-06-09 (mute broadcast: MuteChanged hub method, isMuted Participant field, ParticipantMuted/Unmuted listeners, broadcastMuteChanged, mute icon UI)
 
 ## Decisions
 
 - DbUpdateException catch for HTTP 409 on duplicate room names (avoids TOCTOU race vs. pre-check query)
 - _connectionToRoom cleared after disconnect loop (connection is in exactly one room)
 - ParticipantInfo.IsMuted added now to avoid second edit in Plan 02
+- broadcastMuteChanged passes !isMicEnabled.value (post-toggle state); toggleMic updates the ref synchronously
+- vb-av.muted ring reuses var(--live) red to match muted-mic button color
 
 ## Notes
 
