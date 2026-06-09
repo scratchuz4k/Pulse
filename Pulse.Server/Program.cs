@@ -55,8 +55,8 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy.SetIsOriginAllowed(origin =>
         {
-            // Allow null origin (Electron file:// loads send null)
-            if (string.IsNullOrEmpty(origin)) return true;
+            // Allow null origin (Electron file:// sends the string "null")
+            if (string.IsNullOrEmpty(origin) || origin == "null") return true;
             if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
             return uri.Host == "localhost"
                 || uri.Scheme == "app"
