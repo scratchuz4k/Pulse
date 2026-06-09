@@ -157,8 +157,25 @@
               <div v-if="joinError" class="join-error">{{ joinError }}</div>
             </div>
 
-            <div v-if="!roomStore.currentRoomName && !showJoinForm" class="empty-card">
-              <p>No active voice rooms.</p>
+            <!-- Other rooms the user is NOT in -->
+            <template v-for="room in roomStore.rooms" :key="room.id">
+              <div
+                v-if="room.name !== roomStore.currentRoomName"
+                class="room-card joinable"
+                @click="handleJoinRoom(room.name)"
+              >
+                <div class="card-row card-head">
+                  <span class="type-chip voice-chip">🎙 VOICE</span>
+                  <span class="card-name">{{ room.name }}</span>
+                </div>
+                <div class="card-row">
+                  <button class="jump-btn" :disabled="joining" @click.stop="handleJoinRoom(room.name)">Join ▸</button>
+                </div>
+              </div>
+            </template>
+
+            <div v-if="roomStore.rooms.length === 0 && !roomStore.currentRoomName && !showJoinForm" class="empty-card">
+              <p>No voice rooms yet.</p>
               <button class="jump-btn" style="margin-top: 12px" @click="showJoinForm = true">Create one ▸</button>
             </div>
 
@@ -299,7 +316,7 @@ import { useLiveKit } from '../composables/useLiveKit'
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const { logout, fetchLiveKitToken } = useAuth()
-const { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged } = usePresence()
+const { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, createRoom } = usePresence()
 const {
   connect: livekitConnect, disconnect: livekitDisconnect,
   toggleMic, switchInput, switchOutput,
@@ -311,6 +328,7 @@ const activeNav = ref<'hub' | 'text' | 'voice' | 'settings'>('voice')
 const roomNameInput = ref('')
 const joining = ref(false)
 const joinError = ref('')
+const createRoomError = ref('')
 const showJoinForm = ref(false)
 const isDeafened = ref(false)
 
@@ -336,8 +354,16 @@ const speakerName = computed(() => {
 async function handleJoin(): Promise<void> {
   if (!roomNameInput.value.trim()) return
   joinError.value = ''
+  createRoomError.value = ''
   joining.value = true
   showJoinForm.value = false
+  try {
+    // Create the room on the server (idempotent — server returns existing if name taken by POST design)
+    await createRoom(SERVER_URL, roomNameInput.value.trim())
+  } catch (e) {
+    // Non-fatal: room may already exist, proceed to join
+    console.warn('[handleJoin] createRoom:', e)
+  }
   try {
     const { liveKitToken, liveKitHost } = await fetchLiveKitToken(roomNameInput.value.trim())
     await connect(SERVER_URL)
@@ -351,6 +377,11 @@ async function handleJoin(): Promise<void> {
   } finally {
     joining.value = false
   }
+}
+
+async function handleJoinRoom(name: string): Promise<void> {
+  roomNameInput.value = name
+  await handleJoin()
 }
 
 async function handleLeave(): Promise<void> {
@@ -535,6 +566,8 @@ void connectionState
   border-color: var(--voice);
   background: rgba(35, 201, 125, .05);
 }
+.room-card.joinable { cursor: pointer; }
+.room-card.joinable:hover { border-color: var(--accent); }
 
 .card-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
