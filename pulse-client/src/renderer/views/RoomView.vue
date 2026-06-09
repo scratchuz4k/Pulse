@@ -225,6 +225,28 @@
           </label>
         </div>
         <div v-else class="settings-hint">Join a room first to configure audio devices.</div>
+        <div class="settings-section" style="margin-top: 24px;">
+          <div class="settings-group-label">Voice Mode</div>
+          <label class="setting-label">
+            Input Mode
+            <div class="ptt-toggle">
+              <button :class="['ptt-opt', !isPttMode && 'active']" @click="isPttMode = false">Voice Activity</button>
+              <button :class="['ptt-opt', isPttMode && 'active']" @click="isPttMode = true">Push-to-Talk</button>
+            </div>
+          </label>
+          <label v-if="isPttMode" class="setting-label">
+            PTT Key
+            <div class="ptt-key-row">
+              <kbd
+                class="ptt-key"
+                :class="{ capturing: isCapturing }"
+                tabindex="0"
+                @click="startCapture"
+                @keydown="handleCaptureKeydown"
+              >{{ isCapturing ? 'Press a key…' : (pttBinding ? pttBinding.label : 'Click to bind') }}</kbd>
+            </div>
+          </label>
+        </div>
       </div>
 
     </div><!-- /page-body -->
@@ -306,12 +328,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRoomStore } from '../stores/room'
 import { useAuth } from '../composables/useAuth'
 import { usePresence } from '../composables/usePresence'
 import { useLiveKit } from '../composables/useLiveKit'
+import { usePtt } from '../composables/usePtt'
 
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
@@ -323,6 +346,7 @@ const {
   isConnected, isMicEnabled, activeSpeakers,
   inputDevices, outputDevices, activeInputId, activeOutputId,
 } = useLiveKit()
+const { isPttMode, pttBinding, isCapturing, startCapture, handleCaptureKeydown, setReleaseCallback } = usePtt()
 
 const activeNav = ref<'hub' | 'text' | 'voice' | 'settings'>('voice')
 const roomNameInput = ref('')
@@ -331,6 +355,25 @@ const joinError = ref('')
 const createRoomError = ref('')
 const showJoinForm = ref(false)
 const isDeafened = ref(false)
+
+async function setMicEnabled(v: boolean): Promise<void> {
+  if (isMicEnabled.value !== v) {
+    await toggleMic()
+    await broadcastMuteChanged(!v)
+  }
+}
+
+onMounted(() => {
+  window.pulseApi.removePttListeners()
+  window.pulseApi.onPttKeyDown(() => { if (isPttMode.value) setMicEnabled(true) })
+  window.pulseApi.onPttKeyUp(() => { if (isPttMode.value) setMicEnabled(false) })
+  // Wire focused-window keyup (globalShortcut doesn't send keyup)
+  setReleaseCallback(() => { if (isPttMode.value) setMicEnabled(false) })
+})
+
+onUnmounted(() => {
+  window.pulseApi.removePttListeners()
+})
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000'
 
@@ -369,6 +412,7 @@ async function handleJoin(): Promise<void> {
     await connect(SERVER_URL)
     await joinRoom(roomNameInput.value.trim())
     await livekitConnect(liveKitToken, liveKitHost)
+    if (isPttMode.value) await setMicEnabled(false)
     roomNameInput.value = ''
     activeNav.value = 'voice'
   } catch (err: unknown) {
@@ -871,4 +915,12 @@ void connectionState
   background: transparent; border: none; color: var(--c-ink-4); cursor: pointer;
 }
 .logout-btn:hover { color: var(--live); }
+
+/* ── PTT Settings ── */
+.ptt-toggle { display: flex; border: 1px solid var(--c-border-2); border-radius: var(--radius-sm); overflow: hidden; width: fit-content; }
+.ptt-opt { padding: 6px 14px; background: transparent; border: none; color: var(--c-ink-3); font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; transition: background .1s, color .1s; }
+.ptt-opt.active { background: var(--accent); color: #fff; }
+.ptt-key-row { display: flex; align-items: center; gap: 8px; }
+kbd.ptt-key { display: inline-flex; align-items: center; justify-content: center; min-width: 60px; padding: 6px 12px; border: 1px solid var(--c-border-2); border-radius: 6px; background: var(--c-side-2); color: var(--c-ink); font-size: 13px; font-family: inherit; cursor: pointer; outline: none; transition: border-color .1s; }
+kbd.ptt-key:focus, kbd.ptt-key.capturing { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 </style>
