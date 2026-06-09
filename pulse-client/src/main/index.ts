@@ -1,10 +1,16 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, globalShortcut } from 'electron'
+
+// Allow audio autoplay and mic access without user gesture
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
 import { machineId } from 'node-machine-id'
 
 let store: InstanceType<typeof Store>
+let mainWindow: BrowserWindow | null = null
+let pttAccelerator: string | null = null
+let pttHeld = false
 
 async function createStore(): Promise<void> {
   const key = await machineId()
@@ -12,7 +18,7 @@ async function createStore(): Promise<void> {
 }
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
@@ -24,7 +30,7 @@ function createWindow(): void {
   })
 
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    mainWindow!.show()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -41,6 +47,10 @@ function createWindow(): void {
 
 app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.pulse.client')
+
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    callback(true) // grant all permissions in dev
+  })
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -60,7 +70,46 @@ app.whenReady().then(async () => {
     store.delete(key)
   })
 
+  ipcMain.handle('ptt:get-key', () => store.get('ptt.key') ?? null)
+
+  ipcMain.handle('ptt:set-key', (_event, accelerator: string | null) => {
+    if (pttAccelerator) {
+      globalShortcut.unregister(pttAccelerator)
+      pttAccelerator = null
+    }
+    if (!accelerator || typeof accelerator !== 'string' || !accelerator.trim() || !mainWindow) return false
+    const registered = globalShortcut.register(accelerator, () => {
+      if (!mainWindow) return
+      pttHeld = true
+      mainWindow.webContents.send('ptt:key-down')
+    })
+    if (registered) {
+      pttAccelerator = accelerator
+      store.set('ptt.key', accelerator)
+    }
+    return registered
+  })
+
   createWindow()
+
+  // Blur auto-release: if user loses focus while holding PTT, release it
+  mainWindow!.on('blur', () => {
+    if (pttHeld && mainWindow) {
+      pttHeld = false
+      mainWindow.webContents.send('ptt:key-up')
+    }
+  })
+
+  // Restore saved PTT key on startup
+  const savedKey = store.get('ptt.key') as string | undefined
+  if (savedKey && mainWindow) {
+    globalShortcut.register(savedKey, () => {
+      if (!mainWindow) return
+      pttHeld = true
+      mainWindow.webContents.send('ptt:key-down')
+    })
+    pttAccelerator = savedKey
+  }
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -68,6 +117,7 @@ app.whenReady().then(async () => {
 })
 
 app.on('window-all-closed', () => {
+  globalShortcut.unregisterAll()
   if (process.platform !== 'darwin') {
     app.quit()
   }
