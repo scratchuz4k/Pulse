@@ -50,11 +50,22 @@ builder.Services.AddAuthorization();
 // SignalR
 builder.Services.AddSignalR();
 
-// CORS (dev — tighten in production)
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+        policy.SetIsOriginAllowed(origin =>
+        {
+            // Allow null origin (Electron file:// loads send null)
+            if (string.IsNullOrEmpty(origin)) return true;
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri)) return false;
+            return uri.Host == "localhost"
+                || uri.Scheme == "app"
+                || uri.Scheme == "file"
+                || origin == "https://pulse-production-50c0.up.railway.app";
+        })
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials());
 });
 
 // Controllers
