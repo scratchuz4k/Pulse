@@ -7,7 +7,7 @@ namespace Pulse.Server.Hubs;
 [Authorize]
 public class PresenceHub : Hub
 {
-    private record ParticipantInfo(string DisplayName, string UserId, bool IsMuted = false);
+    private record ParticipantInfo(string DisplayName, string UserId, bool IsMuted = false, bool IsDeafened = false);
 
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ParticipantInfo>>
         _rooms = new(); // roomName -> { connectionId -> ParticipantInfo }
@@ -59,6 +59,19 @@ public class PresenceHub : Hub
             room[Context.ConnectionId] = info with { IsMuted = isMuted };
         }
         var eventName = isMuted ? "ParticipantMuted" : "ParticipantUnmuted";
+        await Clients.Group(roomName).SendAsync(eventName, Context.ConnectionId);
+    }
+
+    public async Task DeafenChanged(bool isDeafened)
+    {
+        var roomName = GetRoomForConnection(Context.ConnectionId);
+        if (roomName is null) return;
+        if (_rooms.TryGetValue(roomName, out var room) &&
+            room.TryGetValue(Context.ConnectionId, out var info))
+        {
+            room[Context.ConnectionId] = info with { IsDeafened = isDeafened };
+        }
+        var eventName = isDeafened ? "ParticipantDeafened" : "ParticipantUndeafened";
         await Clients.Group(roomName).SendAsync(eventName, Context.ConnectionId);
     }
 
