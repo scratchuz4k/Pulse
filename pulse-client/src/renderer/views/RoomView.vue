@@ -355,6 +355,7 @@ const joinError = ref('')
 const createRoomError = ref('')
 const showJoinForm = ref(false)
 const isDeafened = ref(false)
+const prevMicEnabled = ref(false)
 
 async function setMicEnabled(v: boolean): Promise<void> {
   if (isMicEnabled.value !== v) {
@@ -434,6 +435,7 @@ async function handleLeave(): Promise<void> {
   await disconnect()
   roomStore.clearRoom()
   isDeafened.value = false
+  prevMicEnabled.value = false
 }
 
 async function handleToggleMic(): Promise<void> {
@@ -442,11 +444,22 @@ async function handleToggleMic(): Promise<void> {
 }
 
 async function handleToggleDeafen(): Promise<void> {
-  isDeafened.value = !isDeafened.value
-  document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => {
-    el.volume = isDeafened.value ? 0 : 1
-  })
-  if (isDeafened.value && isMicEnabled.value) await toggleMic()
+  if (!isDeafened.value) {
+    // About to deafen: save current mic state, then mute mic
+    prevMicEnabled.value = isMicEnabled.value
+    isDeafened.value = true
+    document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => {
+      el.volume = 0
+    })
+    if (isMicEnabled.value) await toggleMic()  // mute mic (no broadcast — D-07)
+  } else {
+    // About to undeafen: restore audio and restore previous mic state
+    isDeafened.value = false
+    document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => {
+      el.volume = 1
+    })
+    if (prevMicEnabled.value && !isMicEnabled.value) await toggleMic()  // restore mic if it was on before
+  }
 }
 
 async function handleLogout(): Promise<void> {
