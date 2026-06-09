@@ -10,7 +10,7 @@ progress:
   total_plans: 3
   completed_plans: 3
   percent: 0
-stopped_at: Phase 02, Plan 03 complete — roomStore.rooms, RoomListUpdated listener, createRoom POST, voice feed renders all rooms with one-click join
+stopped_at: Phase 02, Plan 04 complete — PTT globalShortcut IPC, preload bridge, usePtt composable, Settings VA/PTT toggle + key-capture UI
 ---
 
 # Pulse — Project State
@@ -32,7 +32,7 @@ stopped_at: Phase 02, Plan 03 complete — roomStore.rooms, RoomListUpdated list
 
 ## Last Action
 
-Phase 02 Plan 03 executed — 2026-06-09 (room list wiring: RoomInfo interface, rooms ref, setRoomList, RoomListUpdated listener, GET /rooms on connect, createRoom POST, voice feed v-for all rooms, one-click join)
+Phase 02 Plan 04 executed — 2026-06-09 (PTT: globalShortcut IPC handlers in main, preload bridge with onPttKeyDown/onPttKeyUp/setPttKey/getPttKey/removePttListeners, usePtt composable with codeToAccelerator + setReleaseCallback, Settings VA/PTT toggle + kbd key-capture, PTT disables mic on connect)
 
 ## Decisions
 
@@ -43,6 +43,9 @@ Phase 02 Plan 03 executed — 2026-06-09 (room list wiring: RoomInfo interface, 
 - vb-av.muted ring reuses var(--live) red to match muted-mic button color
 - createRoom errors are non-fatal in handleJoin (room may already exist; join proceeds regardless)
 - joinable room card hover uses var(--accent) border to match join button branding
+- setReleaseCallback pattern in usePtt: globalShortcut fires no keyup; focused-window keyup wired via callback from RoomView
+- ptt:set-key validates accelerator as non-empty string before globalShortcut.register (T-02D-01)
+- setMicEnabled wrapper: toggleMic + broadcastMuteChanged keeps remote mute icon in sync during PTT
 
 ## Notes
 

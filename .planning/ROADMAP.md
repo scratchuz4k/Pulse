@@ -38,7 +38,7 @@ Plans:
 - [x] 02-01-PLAN.md — Server room persistence: Room entity, EF DbSet, GET/POST /rooms, PresenceHub reverse-lookup
 - [x] 02-02-PLAN.md — Mute broadcast: PresenceHub MuteChanged, store isMuted, ParticipantMuted/Unuted listeners, 🔇 icon
 - [x] 02-03-PLAN.md — Room list wiring: roomStore.rooms, RoomListUpdated listener, voice feed renders all rooms, one-click join
-- [ ] 02-04-PLAN.md — Push-to-talk: globalShortcut IPC, preload bridge, usePtt composable, Settings key-capture UI
+- [x] 02-04-PLAN.md — Push-to-talk: globalShortcut IPC, preload bridge, usePtt composable, Settings key-capture UI
 - [ ] 02-05-PLAN.md — Deafen fix + speaking indicators: prevMicEnabled save/restore, ROOM-02 userId matching verified
 
 ---
