@@ -473,6 +473,7 @@ async function handleToggleDeafen(): Promise<void> {
       el.volume = 0
     })
     if (isMicEnabled.value) await toggleMic()
+    await broadcastMuteChanged(true)   // deafen forces mute — visible to others
     await broadcastDeafenChanged(true)
   } else {
     // About to undeafen: restore audio and restore previous mic state
@@ -481,6 +482,7 @@ async function handleToggleDeafen(): Promise<void> {
       el.volume = 1
     })
     if (prevMicEnabled.value && !isMicEnabled.value) await toggleMic()  // restore mic if it was on before
+    await broadcastMuteChanged(!prevMicEnabled.value)  // restore mute state to match restored mic
     await broadcastDeafenChanged(false)
   }
 }
