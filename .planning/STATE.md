@@ -3,21 +3,21 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: 2026-06-09T20:00:00.000Z
+last_updated: 2026-06-09T20:10:00.000Z
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 3
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
-stopped_at: Phase 02, Plan 04 complete — PTT globalShortcut IPC, preload bridge, usePtt composable, Settings VA/PTT toggle + key-capture UI
+stopped_at: Phase 02, Plan 05 complete — deafen fix (prevMicEnabled save/restore) + speaking indicator userId verification
 ---
 
 # Pulse — Project State
 
 ## Current Phase
 
-**Phase 2: Full Room Experience** — In progress (2 plans complete)
+**Phase 2: Full Room Experience** — In progress (3 plans complete)
 
 ## Phase Status
 
@@ -32,7 +32,7 @@ stopped_at: Phase 02, Plan 04 complete — PTT globalShortcut IPC, preload bridg
 
 ## Last Action
 
-Phase 02 Plan 04 executed — 2026-06-09 (PTT: globalShortcut IPC handlers in main, preload bridge with onPttKeyDown/onPttKeyUp/setPttKey/getPttKey/removePttListeners, usePtt composable with codeToAccelerator + setReleaseCallback, Settings VA/PTT toggle + kbd key-capture, PTT disables mic on connect)
+Phase 02 Plan 05 executed — 2026-06-09 (Deafen fix: prevMicEnabled ref saves mic state before deafen, restores on undeafen; speaking indicator verification: all activeSpeakers checks confirmed to use p.userId matching LiveKit identity; ROOM-02 verified)
 
 ## Decisions
 
@@ -46,6 +46,8 @@ Phase 02 Plan 04 executed — 2026-06-09 (PTT: globalShortcut IPC handlers in ma
 - setReleaseCallback pattern in usePtt: globalShortcut fires no keyup; focused-window keyup wired via callback from RoomView
 - ptt:set-key validates accelerator as non-empty string before globalShortcut.register (T-02D-01)
 - setMicEnabled wrapper: toggleMic + broadcastMuteChanged keeps remote mute icon in sync during PTT
+- prevMicEnabled ref saves mic state before deafen; restored on undeafen with guard (prevMicEnabled && !isMicEnabled)
+- broadcastMuteChanged NOT called from handleToggleDeafen — deafen is client-side silent per D-07
 
 ## Notes
 
