@@ -84,14 +84,20 @@
           <div class="squad-head">In voice</div>
           <div v-if="roomStore.currentRoomName" class="squad-list">
             <div v-for="p in roomStore.participants" :key="p.connectionId" class="squad-member" :class="{ speaking: activeSpeakers.includes(p.userId) }">
-              <span class="sq-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
-              <div class="sq-info">
-                <span class="sq-name">{{ p.displayName }}</span>
-                <span class="sq-status" :style="{ color: activeSpeakers.includes(p.userId) ? 'var(--voice)' : '' }">
-                  {{ activeSpeakers.includes(p.userId) ? '🎙 speaking' : 'listening' }}
+              <div class="sq-av-wrap">
+                <span class="sq-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
+                <span v-if="p.isMuted" class="sq-mute-badge" title="Muted">
+                  <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                    <line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/>
+                  </svg>
                 </span>
               </div>
-              <span v-if="p.isMuted" class="sq-muted-icon" title="Muted">🔇</span>
+              <div class="sq-info">
+                <span class="sq-name">{{ p.displayName }}</span>
+                <span class="sq-status" :class="{ 'sq-status--muted': p.isMuted, 'sq-status--speaking': activeSpeakers.includes(p.userId) }">
+                  {{ activeSpeakers.includes(p.userId) ? '🎙 speaking' : p.isMuted ? 'muted' : 'listening' }}
+                </span>
+              </div>
             </div>
           </div>
           <div v-else class="squad-empty">Nobody in voice yet</div>
@@ -191,14 +197,18 @@
                 <span class="sq-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
                 <!-- ROOM-02: sq-speaking-ring visible when p.userId matches LiveKit speaker identity -->
                 <span v-if="activeSpeakers.includes(p.userId)" class="sq-speaking-ring" />
+                <span v-else-if="p.isMuted" class="sq-mute-badge" title="Muted">
+                  <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                    <line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/>
+                  </svg>
+                </span>
               </div>
               <div class="sq-info">
                 <span class="sq-name">{{ p.displayName }}</span>
-                <span class="sq-status" :style="{ color: activeSpeakers.includes(p.userId) ? 'var(--voice)' : '' }">
-                  {{ activeSpeakers.includes(p.userId) ? '🎙 speaking' : 'in room' }}
+                <span class="sq-status" :class="{ 'sq-status--muted': p.isMuted, 'sq-status--speaking': activeSpeakers.includes(p.userId) }">
+                  {{ activeSpeakers.includes(p.userId) ? '🎙 speaking' : p.isMuted ? 'muted' : 'in room' }}
                 </span>
               </div>
-              <span v-if="p.isMuted" class="sq-muted-icon" title="Muted">🔇</span>
             </div>
           </div>
           <div v-else class="squad-empty">No one in voice yet</div>
@@ -785,7 +795,16 @@ void connectionState
   color: var(--c-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .sq-status { display: block; font-size: 11px; color: var(--c-ink-4); }
-.sq-muted-icon { font-size: 13px; margin-left: 4px; flex: 0 0 auto; }
+.sq-status--speaking { color: var(--voice); }
+.sq-status--muted { color: var(--live); }
+.sq-mute-badge {
+  position: absolute; bottom: -2px; right: -2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--live);
+  display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--c-bg);
+  color: #fff;
+}
 .squad-empty { padding: 20px 14px; font-size: 13px; color: var(--c-ink-5); }
 
 /* ── Placeholders ── */
