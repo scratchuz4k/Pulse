@@ -10,7 +10,7 @@ progress:
   total_plans: 3
   completed_plans: 3
   percent: 0
-stopped_at: Phase 02, Plan 02 complete — mute broadcast, isMuted store, ParticipantMuted/Unmuted listeners, mute icon UI
+stopped_at: Phase 02, Plan 03 complete — roomStore.rooms, RoomListUpdated listener, createRoom POST, voice feed renders all rooms with one-click join
 ---
 
 # Pulse — Project State
@@ -32,7 +32,7 @@ stopped_at: Phase 02, Plan 02 complete — mute broadcast, isMuted store, Partic
 
 ## Last Action
 
-Phase 02 Plan 02 executed — 2026-06-09 (mute broadcast: MuteChanged hub method, isMuted Participant field, ParticipantMuted/Unmuted listeners, broadcastMuteChanged, mute icon UI)
+Phase 02 Plan 03 executed — 2026-06-09 (room list wiring: RoomInfo interface, rooms ref, setRoomList, RoomListUpdated listener, GET /rooms on connect, createRoom POST, voice feed v-for all rooms, one-click join)
 
 ## Decisions
 
@@ -41,6 +41,8 @@ Phase 02 Plan 02 executed — 2026-06-09 (mute broadcast: MuteChanged hub method
 - ParticipantInfo.IsMuted added now to avoid second edit in Plan 02
 - broadcastMuteChanged passes !isMicEnabled.value (post-toggle state); toggleMic updates the ref synchronously
 - vb-av.muted ring reuses var(--live) red to match muted-mic button color
+- createRoom errors are non-fatal in handleJoin (room may already exist; join proceeds regardless)
+- joinable room card hover uses var(--accent) border to match join button branding
 
 ## Notes
 
