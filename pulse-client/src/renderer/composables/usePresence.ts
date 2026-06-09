@@ -53,6 +53,14 @@ export function usePresence() {
       roomStore.setParticipantMuted(connectionId, false)
     })
 
+    hubConnection.on('ParticipantDeafened', (connectionId: string) => {
+      roomStore.setParticipantDeafened(connectionId, true)
+    })
+
+    hubConnection.on('ParticipantUndeafened', (connectionId: string) => {
+      roomStore.setParticipantDeafened(connectionId, false)
+    })
+
     hubConnection.on('RoomListUpdated', (list: { id: number; name: string }[]) => {
       roomStore.setRoomList(list)
     })
@@ -108,6 +116,11 @@ export function usePresence() {
     await hubConnection.invoke('MuteChanged', isMuted)
   }
 
+  async function broadcastDeafenChanged(isDeafened: boolean): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('DeafenChanged', isDeafened)
+  }
+
   async function createRoom(serverUrl: string, name: string): Promise<void> {
     const response = await fetch(`${serverUrl}/rooms`, {
       method: 'POST',
@@ -125,5 +138,5 @@ export function usePresence() {
     }
   }
 
-  return { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, createRoom }
+  return { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, broadcastDeafenChanged, createRoom }
 }

@@ -6,6 +6,7 @@ export interface Participant {
   displayName: string
   userId: string
   isMuted: boolean
+  isDeafened: boolean
 }
 
 export interface RoomInfo {
@@ -20,12 +21,12 @@ export const useRoomStore = defineStore('room', () => {
 
   function setRoom(roomName: string, parts: Omit<Participant, 'isMuted'>[]): void {
     currentRoomName.value = roomName
-    participants.value = parts.map(p => ({ ...p, isMuted: false }))
+    participants.value = parts.map(p => ({ ...p, isMuted: false, isDeafened: false }))
   }
 
-  function addParticipant(connectionId: string, displayName: string, userId: string, isMuted: boolean = false): void {
+  function addParticipant(connectionId: string, displayName: string, userId: string, isMuted: boolean = false, isDeafened: boolean = false): void {
     if (!participants.value.find((p) => p.connectionId === connectionId)) {
-      participants.value.push({ connectionId, displayName, userId, isMuted })
+      participants.value.push({ connectionId, displayName, userId, isMuted, isDeafened })
     }
   }
 
@@ -45,6 +46,11 @@ export const useRoomStore = defineStore('room', () => {
     if (p) p.isMuted = isMuted
   }
 
+  function setParticipantDeafened(connectionId: string, isDeafened: boolean): void {
+    const p = participants.value.find(p => p.connectionId === connectionId)
+    if (p) p.isDeafened = isDeafened
+  }
+
   function setRoomList(list: RoomInfo[]): void {
     rooms.value = list
   }
@@ -58,6 +64,7 @@ export const useRoomStore = defineStore('room', () => {
     removeParticipant,
     clearRoom,
     setParticipantMuted,
+    setParticipantDeafened,
     setRoomList
   }
 })

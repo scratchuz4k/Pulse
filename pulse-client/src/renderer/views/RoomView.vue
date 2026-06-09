@@ -86,7 +86,12 @@
             <div v-for="p in roomStore.participants" :key="p.connectionId" class="squad-member" :class="{ speaking: activeSpeakers.includes(p.userId) }">
               <div class="sq-av-wrap">
                 <span class="sq-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
-                <span v-if="p.isMuted" class="sq-mute-badge" title="Muted">
+                <span v-if="p.isDeafened" class="sq-deafen-badge" title="Deafened">
+                  <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 7V5a4 4 0 0 1 8 0v2"/><path d="M1 7h2v3H1z"/><path d="M9 7h2v3H9z"/><line x1="2" y1="2" x2="10" y2="10"/>
+                  </svg>
+                </span>
+                <span v-else-if="p.isMuted" class="sq-mute-badge" title="Muted">
                   <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                     <line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/>
                   </svg>
@@ -94,8 +99,8 @@
               </div>
               <div class="sq-info">
                 <span class="sq-name">{{ p.displayName }}</span>
-                <span class="sq-status" :class="{ 'sq-status--muted': p.isMuted, 'sq-status--speaking': activeSpeakers.includes(p.userId) }">
-                  {{ activeSpeakers.includes(p.userId) ? '🎙 speaking' : p.isMuted ? 'muted' : 'listening' }}
+                <span class="sq-status" :class="{ 'sq-status--muted': p.isMuted && !p.isDeafened, 'sq-status--deafened': p.isDeafened, 'sq-status--speaking': activeSpeakers.includes(p.userId) }">
+                  {{ activeSpeakers.includes(p.userId) ? '🎙 speaking' : p.isDeafened ? 'deafened' : p.isMuted ? 'muted' : 'listening' }}
                 </span>
               </div>
             </div>
@@ -197,6 +202,11 @@
                 <span class="sq-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
                 <!-- ROOM-02: sq-speaking-ring visible when p.userId matches LiveKit speaker identity -->
                 <span v-if="activeSpeakers.includes(p.userId)" class="sq-speaking-ring" />
+                <span v-else-if="p.isDeafened" class="sq-deafen-badge" title="Deafened">
+                  <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 7V5a4 4 0 0 1 8 0v2"/><path d="M1 7h2v3H1z"/><path d="M9 7h2v3H9z"/><line x1="2" y1="2" x2="10" y2="10"/>
+                  </svg>
+                </span>
                 <span v-else-if="p.isMuted" class="sq-mute-badge" title="Muted">
                   <svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                     <line x1="2" y1="2" x2="10" y2="10"/><line x1="10" y1="2" x2="2" y2="10"/>
@@ -205,8 +215,8 @@
               </div>
               <div class="sq-info">
                 <span class="sq-name">{{ p.displayName }}</span>
-                <span class="sq-status" :class="{ 'sq-status--muted': p.isMuted, 'sq-status--speaking': activeSpeakers.includes(p.userId) }">
-                  {{ activeSpeakers.includes(p.userId) ? '🎙 speaking' : p.isMuted ? 'muted' : 'in room' }}
+                <span class="sq-status" :class="{ 'sq-status--muted': p.isMuted && !p.isDeafened, 'sq-status--deafened': p.isDeafened, 'sq-status--speaking': activeSpeakers.includes(p.userId) }">
+                  {{ activeSpeakers.includes(p.userId) ? '🎙 speaking' : p.isDeafened ? 'deafened' : p.isMuted ? 'muted' : 'in room' }}
                 </span>
               </div>
             </div>
@@ -350,7 +360,7 @@ import { usePtt } from '../composables/usePtt'
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
 const { logout, fetchLiveKitToken } = useAuth()
-const { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, createRoom } = usePresence()
+const { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, broadcastDeafenChanged, createRoom } = usePresence()
 const {
   connect: livekitConnect, disconnect: livekitDisconnect,
   toggleMic, switchInput, switchOutput,
@@ -462,7 +472,8 @@ async function handleToggleDeafen(): Promise<void> {
     document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => {
       el.volume = 0
     })
-    if (isMicEnabled.value) await toggleMic()  // mute mic (no broadcast — D-07)
+    if (isMicEnabled.value) await toggleMic()
+    await broadcastDeafenChanged(true)
   } else {
     // About to undeafen: restore audio and restore previous mic state
     isDeafened.value = false
@@ -470,6 +481,7 @@ async function handleToggleDeafen(): Promise<void> {
       el.volume = 1
     })
     if (prevMicEnabled.value && !isMicEnabled.value) await toggleMic()  // restore mic if it was on before
+    await broadcastDeafenChanged(false)
   }
 }
 
@@ -797,14 +809,16 @@ void connectionState
 .sq-status { display: block; font-size: 11px; color: var(--c-ink-4); }
 .sq-status--speaking { color: var(--voice); }
 .sq-status--muted { color: var(--live); }
-.sq-mute-badge {
+.sq-status--deafened { color: var(--warn); }
+.sq-mute-badge, .sq-deafen-badge {
   position: absolute; bottom: -2px; right: -2px;
   width: 16px; height: 16px; border-radius: 50%;
-  background: var(--live);
   display: flex; align-items: center; justify-content: center;
   border: 1.5px solid var(--c-bg);
   color: #fff;
 }
+.sq-mute-badge { background: var(--live); }
+.sq-deafen-badge { background: var(--warn); color: #1a1b1e; }
 .squad-empty { padding: 20px 14px; font-size: 13px; color: var(--c-ink-5); }
 
 /* ── Placeholders ── */
