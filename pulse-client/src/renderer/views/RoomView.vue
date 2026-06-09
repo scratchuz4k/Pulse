@@ -290,7 +290,7 @@
       </div>
 
       <div class="vb-controls">
-        <button class="vb-btn" :class="{ muted: !isMicEnabled }" :title="isMicEnabled ? 'Mute' : 'Unmute'" @click="handleToggleMic">
+        <button class="vb-btn" :class="{ muted: !isMicEnabled || isDeafened }" :disabled="isDeafened" :title="isDeafened ? 'Muted (deafened)' : isMicEnabled ? 'Mute' : 'Unmute'" @click="handleToggleMic">
           <svg v-if="isMicEnabled" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
             <path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v3"/>
@@ -379,6 +379,7 @@ const isDeafened = ref(false)
 const prevMicEnabled = ref(false)
 
 async function setMicEnabled(v: boolean): Promise<void> {
+  if (isDeafened.value) return  // mic locked while deafened
   if (isMicEnabled.value !== v) {
     await toggleMic()
     await broadcastMuteChanged(!v)
@@ -460,6 +461,7 @@ async function handleLeave(): Promise<void> {
 }
 
 async function handleToggleMic(): Promise<void> {
+  if (isDeafened.value) return  // mic locked while deafened
   await toggleMic()
   await broadcastMuteChanged(!isMicEnabled.value)
 }
@@ -926,6 +928,7 @@ void connectionState
 }
 .vb-btn:hover { background: var(--c-border); color: var(--c-ink-2); }
 .vb-btn.muted { background: rgba(240,71,71,.15); color: var(--live); border-color: rgba(240,71,71,.3); }
+.vb-btn:disabled { opacity: .45; cursor: not-allowed; }
 .vb-leave { background: rgba(240,71,71,.15); color: var(--live); border-color: rgba(240,71,71,.3); }
 .vb-leave:hover { background: rgba(240,71,71,.28); }
 
