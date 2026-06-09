@@ -1,12 +1,13 @@
 # Phase 1: Two Clients Talking - Context
 
 **Gathered:** 2026-06-09
+**Updated:** 2026-06-09 (pivoted from P2P WebRTC to LiveKit SFU)
 **Status:** Ready for planning
 
 <domain>
 ## Phase Boundary
 
-Prove the architecture: two Electron+Vue clients connect to a C# ASP.NET server via SignalR and establish a WebRTC peer-to-peer voice call. Both clients must register/login, join the same named room, and hear each other in real time. Server tracks room state only — no audio passes through the server in this phase.
+Prove the architecture: two or more Electron+Vue clients connect to a C# server, authenticate with JWT, join a LiveKit room, and hear each other in real time. The C# server issues LiveKit room tokens; LiveKit handles all WebRTC signaling and media routing. Server tracks room membership for the Pulse UI — LiveKit owns the audio transport.
 
 </domain>
 
@@ -14,33 +15,42 @@ Prove the architecture: two Electron+Vue clients connect to a C# ASP.NET server 
 ## Implementation Decisions
 
 ### Voice Transport
-- **D-01:** Audio transport is **WebRTC** — browser-native API via Electron's Chromium. No C# WebRTC library needed on the client.
-- **D-02:** For Phase 1, audio is **peer-to-peer** — once WebRTC connects, audio flows directly client-to-client. Server does not relay audio packets.
-- **D-03:** NAT traversal: use a **public STUN server** (e.g., `stun.l.google.com:19302`) to start. No TURN server in Phase 1 — add if users behind strict NAT report connectivity failures.
+- **D-01:** Audio transport is **WebRTC via LiveKit SFU**. Clients connect to a LiveKit server, not directly to each other. LiveKit handles SDP negotiation, ICE, DTLS — the client uses the `livekit-client` JS SDK.
+- **D-02:** Architecture is **SFU (Selective Forwarding Unit)** from Phase 1. P2P mesh was considered and rejected — user is planning for larger rooms. LiveKit scales to hundreds of participants.
+- **D-03:** NAT traversal is handled entirely by LiveKit (it manages its own STUN/TURN internally). No custom ICE server config needed on the client.
 
-### Signaling
-- **D-04:** Signaling (SDP offer/answer, ICE candidates) travels over **SignalR** hub on the C# server. Typed hub methods. Clients send their SDP to the server, server routes it to the right peer.
+### Signaling & Room Token Flow
+- **D-04:** The C# server is the **token issuer**, not the media router. Flow:
+  1. Client authenticates (JWT from C# server)
+  2. Client calls C# server endpoint `POST /rooms/token?roomName=X`
+  3. C# server calls LiveKit server API to create the room (if needed) and generate a participant token
+  4. Client receives the LiveKit token and connects directly to LiveKit using `livekit-client`
+- **D-05:** SignalR is **retained** for Pulse presence data — who is in which room, speaking indicators, room list updates. SignalR does NOT carry WebRTC signaling (LiveKit owns that). SignalR carries Pulse-specific events only.
+- **D-06:** Client disconnect handling: LiveKit fires participant disconnect events; C# server listens via LiveKit webhooks (or tracks via SignalR `OnDisconnectedAsync`) to update Pulse room state.
 
 ### Server Architecture
-- **D-05:** Server tracks: room registry (room name → list of connected SignalR connection IDs), user identity per connection. No audio data touches the server.
-- **D-06:** Client disconnect handling via **SignalR `OnDisconnectedAsync`** — server removes the client from room state automatically on drop/crash.
-- **D-07:** Audio relay logic sits behind an **interface/abstraction** even in Phase 1 (e.g., `IAudioRouter`). Phase 1 implementation is a no-op / P2P coordinator. Future phases plug in an SFU without rewiring the hub. This is a deliberate architectural seam.
+- **D-07:** The `IAudioRouter` abstraction is **removed**. With LiveKit as the permanent SFU, the abstraction seam is unnecessary complexity. The C# server's role is: auth, LiveKit token generation, and Pulse presence state. It is not in the audio path at all.
+- **D-08:** LiveKit server runs as a **separate process** alongside the C# server. In dev: `livekit-server --dev` (single binary, no Docker required). In production: LiveKit Cloud or self-hosted Docker.
+- **D-09:** The C# server communicates with LiveKit using the **LiveKit Server SDK for .NET** (`Livekit.Server.Sdk.Dotnet` NuGet) to generate tokens. Room creation is implicit — LiveKit creates rooms automatically on first participant join.
 
 ### Client Framework
-- **D-08:** Desktop client is **Electron** wrapping a **Vue 3** app. Electron handles OS integration (system tray, process management); Vue handles all UI. TypeScript preferred.
-- **D-09:** The design files in `/Design/` (JSX wireframes, CSS) are the UI reference. They will need to be adapted from React JSX to Vue 3 SFCs — treat them as layout/design spec, not copy-paste source.
-- **D-10:** WebRTC calls use the browser's native `RTCPeerConnection` API — no third-party WebRTC library on the client.
-- **D-11:** Client communicates with the server via the **`@microsoft/signalr`** npm package (the official JS SignalR client).
+- **D-10:** Desktop client is **Electron + Vue 3 + TypeScript**. Same as originally planned.
+- **D-11:** Audio/video is handled by the **`livekit-client`** npm package. No manual `RTCPeerConnection` code on the client — `livekit-client` manages the full WebRTC lifecycle.
+- **D-12:** Pulse UI events (room list, presence) still come through **`@microsoft/signalr`** — separate from the LiveKit connection.
+- **D-13:** The design files in `/Design/` are the UI reference (JSX → Vue 3 SFCs).
 
 ### Authentication
-- **D-12:** Auth: **JWT + username/password**. Server issues a JWT on login. Client stores it and attaches it to the SignalR connection as a Bearer token.
-- **D-13:** Token strategy: **short-lived access token (15–60 min) + refresh token**. Refresh token is long-lived. Electron client handles silent refresh.
-- **D-14:** Username is a **display name only** — no uniqueness enforced. Server assigns a unique internal GUID as the user's identity. Display name is for UI only in Phase 1.
+- **D-14:** Auth: **JWT + username/password** via C# server (unchanged).
+- **D-15:** Token strategy: short-lived access token (30 min) + refresh token (7 days, DB-backed, rotated on use).
+- **D-16:** Display name only — server assigns internal GUID. LiveKit participant identity = user GUID.
+- **D-17:** LiveKit room token has a short TTL (1 hour). Client requests a fresh token each time it joins a room.
 
 ### Claude's Discretion
-- STUN server choice: use `stun.l.google.com:19302` as the default ICE server config. Add a second public STUN (`stun1.l.google.com:19302`) for redundancy.
-- JWT signing: use HMAC-SHA256 (`HS256`) for Phase 1. Switch to RS256 if multi-server deployment becomes needed later.
-- Refresh token storage in Electron: store in the OS keychain via `keytar` or in an encrypted local file — do not store in `localStorage`.
+- LiveKit dev server: use `livekit-server --dev --bind 0.0.0.0` so both Electron windows on the same machine can reach it.
+- LiveKit API key/secret for dev: hardcode in `appsettings.Development.json` (`LiveKit:ApiKey`, `LiveKit:ApiSecret`, `LiveKit:Host`). Do not commit these to git — add to `.gitignore`.
+- JWT signing: HS256, same as before.
+- Refresh token storage in Electron: `electron-store` with `encryptionKey` from `node-machine-id`.
+- LiveKit token generation: use `Livekit.Server.Sdk.Dotnet` — do not implement JWT token generation manually for LiveKit (it has a specific format).
 
 </decisions>
 
@@ -50,20 +60,15 @@ Prove the architecture: two Electron+Vue clients connect to a C# ASP.NET server 
 **Downstream agents MUST read these before planning or implementing.**
 
 ### Design & UI
-- `Design/Guildhall Wireframes.html` — Full wireframe suite showing the Pulse home, voice room layout, participant list, and speaking indicators. Use as the visual contract for Phase 1 client UI.
-- `Design/direction-a.jsx` — Direction A: section sub-rail + channel list pattern
-- `Design/direction-b.jsx` — Direction B: alternative layout
-- `Design/direction-c.jsx` — Direction C: alternative layout
-- `Design/app-shared.jsx` — Shared UI components referenced by all three directions
-- `Design/app.css` + `Design/wireframe.css` — Styling system
+- `Design/Guildhall Wireframes.html` — Full wireframe suite. Use as visual contract for Phase 1 client UI.
+- `Design/direction-a.jsx`, `direction-b.jsx`, `direction-c.jsx` — Three layout directions (JSX, port to Vue)
+- `Design/app-shared.jsx`, `app.css`, `wireframe.css` — Shared components and styles
 
 ### Requirements
-- `.planning/REQUIREMENTS.md` — Full v1 requirements. Phase 1 covers: VOICE-01, VOICE-02, VOICE-03, SRV-01, SRV-02, SRV-03
+- `.planning/REQUIREMENTS.md` — Phase 1 covers: VOICE-01, VOICE-02, VOICE-03, SRV-01, SRV-02, SRV-03
 
 ### Project Context
 - `.planning/PROJECT.md` — Core value, tech decisions, scope boundaries
-
-No external ADRs or specs yet — all decisions captured above.
 
 </canonical_refs>
 
@@ -71,36 +76,38 @@ No external ADRs or specs yet — all decisions captured above.
 ## Existing Code Insights
 
 ### Reusable Assets
-- None yet — greenfield project. No existing code to reuse.
+- None yet — greenfield project.
 
 ### Established Patterns
-- None yet — Phase 1 establishes the patterns all subsequent phases will follow.
+- None yet — Phase 1 establishes the patterns all subsequent phases follow.
 
 ### Integration Points
-- Phase 1 output (SignalR hub, room state service, JWT auth, Vue+Electron shell) is the foundation every subsequent phase builds on.
+- Phase 1 output (C# auth server, LiveKit token endpoint, SignalR presence hub, Vue+Electron shell with livekit-client) is the foundation every subsequent phase builds on.
+- Phases 3 (Priority Speaker) and 4 (Whisper) will use LiveKit features: audio levels API for speaking detection, sub-rooms or selective subscriptions for whisper groups.
 
 </code_context>
 
 <specifics>
 ## Specific Ideas
 
-- The design uses the name "Guildhall" internally; the product is **Pulse**. Use "Pulse" everywhere in code and UI.
-- The design files are JSX (React) — they need to be ported to Vue 3 Single File Components. Treat them as pixel-level design reference, not as runnable code.
-- The `IAudioRouter` abstraction (D-07) is deliberate: when Phase 3 (Priority Speaker) arrives, swapping in an SFU or server-side mixer should not require touching the SignalR hub.
+- The design uses the name "Guildhall" internally; the product is **Pulse**. Use "Pulse" everywhere.
+- LiveKit rooms are created implicitly — client joins with a token and LiveKit creates the room if it doesn't exist. No explicit "create room" API call needed in Phase 1.
+- LiveKit participant identity should be the user's server-side GUID (not display name) for stable identity across reconnects.
+- LiveKit `Room` object exposes `activeSpeakers` and `AudioLevel` events — these will be used in Phase 2 for speaking indicators without additional infrastructure.
 
 </specifics>
 
 <deferred>
 ## Deferred Ideas
 
-- TURN server / relay for strict-NAT users — Phase 1 uses STUN only; add TURN when connectivity complaints arise
-- Unique username enforcement — deferred, display name only for Phase 1
-- Multi-party WebRTC mesh (more than 2 clients) — Phase 2 handles this when full room experience is built
-- SFU / server-side audio mixing for priority speaker and whispers — Phases 3 and 4
+- LiveKit Cloud vs self-hosted decision — Phase 1 uses local dev server; production deployment decided later
+- Unique username enforcement — display name only for Phase 1
+- LiveKit webhooks for server-side participant events — Phase 2 when presence needs to be authoritative
+- Room persistence (rooms survive server restart) — Phase 2
 
 </deferred>
 
 ---
 
 *Phase: 1-Two Clients Talking*
-*Context gathered: 2026-06-09*
+*Context gathered: 2026-06-09 | Updated: 2026-06-09 (LiveKit SFU pivot)*

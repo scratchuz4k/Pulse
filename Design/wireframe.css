@@ -1,0 +1,219 @@
+/* ───────────────────────────────────────────────────────────
+   Guildhall — low-fi wireframe kit
+   Sketchy, hand-drawn vibe · b&w + one "energy" accent (amber)
+   ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Kalam:wght@300;400;700&display=swap');
+
+:root{
+  --ink:#2c2a27;
+  --ink-2:#5b5853;
+  --ink-3:#8a867f;
+  --paper:#faf8f3;
+  --paper-2:#f1eee7;
+  --line:#2c2a27;
+  --line-soft:#bdb9b0;
+  --fill:#e7e3da;
+  --fill-2:#efece4;
+  --energy:#e8722e;     /* heat / activity */
+  --energy-soft:#f7d9c4;
+  --live:#3aa06a;       /* online / voice live */
+  --live-soft:#cfe8da;
+  --flag:#d4504e;
+  --note:#fff3bf;
+  --note-ink:#6b5a1e;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--paper-2);
+  color:var(--ink);
+  font-family:'Kalam',cursive;
+  font-size:15px;
+  line-height:1.4;
+  -webkit-font-smoothing:antialiased;
+  /* faint grid paper */
+  background-image:linear-gradient(rgba(0,0,0,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,.035) 1px,transparent 1px);
+  background-size:26px 26px;
+}
+.hand{font-family:'Architects Daughter',cursive}
+
+/* ── page shell ─────────────────────────────────────────── */
+.page{max-width:1280px;margin:0 auto;padding:26px 28px 90px}
+.topbar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:8px}
+.brand{font-family:'Architects Daughter',cursive;font-size:30px;font-weight:400;letter-spacing:.5px}
+.brand .sub{font-family:'Kalam';font-size:14px;color:var(--ink-3);display:block;letter-spacing:0;margin-top:-2px}
+.spacer{flex:1 1 auto}
+
+/* tabs */
+.tabs{display:flex;gap:10px}
+.tab{
+  font-family:'Architects Daughter',cursive;font-size:17px;cursor:pointer;
+  background:var(--paper);border:2.5px solid var(--line);border-radius:12px 10px 13px 9px;
+  padding:8px 18px;color:var(--ink);transition:transform .1s;
+  box-shadow:2px 2px 0 var(--line);
+}
+.tab:hover{transform:translate(-1px,-1px)}
+.tab.on{background:var(--energy);color:#fff;border-color:var(--line)}
+.toggle{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ink-2);cursor:pointer;user-select:none}
+.toggle .sw{width:38px;height:22px;border:2.5px solid var(--line);border-radius:14px;background:var(--paper);position:relative}
+.toggle .sw::after{content:'';position:absolute;top:1.5px;left:2px;width:15px;height:15px;border-radius:50%;background:var(--ink);transition:left .14s}
+.toggle.on .sw{background:var(--live-soft)}
+.toggle.on .sw::after{left:18px;background:var(--live)}
+
+/* concept section */
+.concept{display:none}
+.concept.show{display:block}
+.lede{font-size:17px;color:var(--ink-2);margin:14px 2px 4px;max-width:860px}
+.lede b{color:var(--energy)}
+
+/* row of variant + note */
+.variant{margin:30px 0 10px}
+.variant-head{display:flex;align-items:baseline;gap:12px;margin:0 2px 12px}
+.variant-head .num{
+  font-family:'Architects Daughter';font-size:15px;background:var(--ink);color:var(--paper);
+  width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.variant-head h3{font-family:'Architects Daughter';font-size:22px;font-weight:400;margin:0}
+.variant-head .tagline{color:var(--ink-3);font-size:15px}
+.stage{display:flex;gap:18px;align-items:flex-start}
+
+/* ── desktop window frame ───────────────────────────────── */
+.win{
+  flex:1 1 auto;min-width:0;
+  background:var(--paper);
+  border:3px solid var(--line);
+  border-radius:16px 14px 17px 15px;
+  box-shadow:5px 6px 0 rgba(44,42,39,.16);
+  overflow:hidden;
+}
+.win-bar{display:flex;align-items:center;gap:7px;padding:9px 14px;border-bottom:2.5px solid var(--line);background:var(--paper-2)}
+.win-bar i{width:12px;height:12px;border-radius:50%;border:2px solid var(--line);display:block}
+.win-bar .ttl{font-family:'Architects Daughter';margin-left:10px;font-size:15px;color:var(--ink-2)}
+.win-body{display:flex;height:var(--h,620px)}
+
+/* ── primitives ─────────────────────────────────────────── */
+.col{display:flex;flex-direction:column;min-width:0}
+.row{display:flex;min-width:0}
+.fill{flex:1 1 auto;min-width:0;min-height:0}
+.scrollfade{position:relative}
+
+.pane{border-right:2.5px solid var(--line);display:flex;flex-direction:column}
+.pane.r{border-right:none;border-left:2.5px solid var(--line)}
+.pane-h{font-family:'Architects Daughter';font-size:13px;letter-spacing:.5px;color:var(--ink-3);padding:12px 14px 8px;text-transform:uppercase}
+
+/* sketchy box */
+.box{border:2.5px solid var(--line);border-radius:11px 9px 12px 10px;background:var(--paper);padding:12px}
+.box.soft{border-color:var(--line-soft);border-style:dashed}
+.box.fill-soft{background:var(--fill-2)}
+.box+.box{margin-top:10px}
+.pad{padding:14px}
+.gap-s{gap:8px}.gap{gap:12px}.gap-l{gap:18px}
+
+/* placeholder text bars */
+.bar{height:9px;border-radius:6px;background:var(--fill);display:block}
+.bar.dk{background:var(--line-soft)}
+.bar.ink{background:var(--ink)}
+.bar+.bar{margin-top:7px}
+.t-sm{height:7px}.t-lg{height:13px}
+.w10{width:10%}.w20{width:20%}.w25{width:25%}.w30{width:30%}.w40{width:40%}.w50{width:50%}
+.w60{width:60%}.w70{width:70%}.w75{width:75%}.w80{width:80%}.w90{width:90%}.w100{width:100%}
+
+/* labels you can actually read */
+.lab{font-size:14px;color:var(--ink)}
+.lab.mut{color:var(--ink-3)}
+.lab.sm{font-size:13px}
+.h-lab{font-family:'Architects Daughter';font-size:16px}
+
+/* avatar */
+.av{width:30px;height:30px;border-radius:50%;border:2.5px solid var(--line);background:var(--fill);
+  display:flex;align-items:center;justify-content:center;font-family:'Architects Daughter';font-size:13px;flex:0 0 auto;color:var(--ink-2)}
+.av.sm{width:24px;height:24px;font-size:11px}
+.av.lg{width:42px;height:42px;font-size:16px}
+.av.on{border-color:var(--live);box-shadow:0 0 0 2px var(--live-soft)}
+.stack{display:flex}.stack .av{margin-left:-8px;background:var(--paper)}.stack .av:first-child{margin-left:0}
+
+/* chips / tags / buttons */
+.chip{display:inline-flex;align-items:center;gap:6px;border:2px solid var(--line);border-radius:20px;padding:3px 11px;font-size:13px;background:var(--paper);white-space:nowrap}
+.chip.energy{border-color:var(--energy);color:var(--energy);background:#fff}
+.chip.live{border-color:var(--live);color:var(--live)}
+.chip.flag{border-color:var(--flag);color:var(--flag)}
+.chip.solid{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:2.5px solid var(--line);border-radius:10px 8px 11px 9px;
+  padding:7px 14px;font-family:'Architects Daughter';font-size:15px;background:var(--paper);cursor:pointer;box-shadow:2px 2px 0 var(--line);white-space:nowrap}
+.btn.go{background:var(--energy);color:#fff}
+.btn.sm{padding:4px 10px;font-size:13px;box-shadow:1.5px 1.5px 0 var(--line)}
+
+/* heat meter */
+.heat{height:12px;border:2px solid var(--line);border-radius:8px;background:repeating-linear-gradient(90deg,transparent 0 4px,rgba(0,0,0,.05) 4px 5px);overflow:hidden;position:relative}
+.heat>i{display:block;height:100%;background:var(--energy)}
+.dotrow{display:flex;gap:4px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--fill);border:1.5px solid var(--line-soft)}
+.dot.hot{background:var(--energy);border-color:var(--energy)}
+.flame{color:var(--energy);font-size:14px}
+
+/* nav rail */
+.nav{width:78px;flex:0 0 78px;border-right:2.5px solid var(--line);background:var(--paper-2);display:flex;flex-direction:column;align-items:center;gap:12px;padding:14px 0}
+.nav .ni{width:46px;height:46px;border:2.5px solid var(--line);border-radius:13px;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10px;color:var(--ink-2);cursor:pointer;text-align:center;line-height:1}
+.nav .ni .ic{font-family:'Architects Daughter';font-size:16px}
+.nav .ni.on{background:var(--energy);color:#fff;border-color:var(--line)}
+.nav .ni.brand{background:var(--ink);color:var(--paper);border-radius:50%}
+
+/* sparkline */
+.spark{display:block}
+.spark path{fill:none;stroke:var(--energy);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.spark .base{stroke:var(--line-soft);stroke-width:2}
+
+/* hatch media placeholder */
+.hatch{background-image:repeating-linear-gradient(45deg,var(--line-soft) 0 1px,transparent 1px 9px);border:2.5px solid var(--line);border-radius:10px}
+
+/* annotation note */
+.note{
+  flex:0 0 250px;width:250px;align-self:flex-start;
+  background:var(--note);color:var(--note-ink);
+  border:2.5px solid #d9c25a;border-radius:4px;
+  padding:14px 16px;font-size:14.5px;line-height:1.45;
+  box-shadow:3px 4px 0 rgba(44,42,39,.13);transform:rotate(.6deg);
+  position:relative;margin-top:30px;
+}
+.note::before{content:'';position:absolute;top:-9px;left:24px;width:46px;height:18px;background:rgba(255,255,255,.5);border:1.5px dashed #cdb44e;border-radius:3px;transform:rotate(-3deg)}
+.note h4{font-family:'Architects Daughter';font-size:17px;margin:0 0 6px;color:#5a4a12}
+.note b{color:var(--energy)}
+.note .tiny{font-size:12.5px;color:#8a7833;margin-top:8px;display:block}
+body.no-notes .note{display:none}
+body.no-notes .stage .win{flex:1 1 auto}
+
+/* misc layout helpers */
+.between{justify-content:space-between}.center{align-items:center}.middle{align-items:center}
+.wrap{flex-wrap:wrap}
+.mt{margin-top:10px}.mt-s{margin-top:6px}.mb{margin-bottom:10px}
+.grow{flex:1 1 auto}
+.tile{border:2.5px solid var(--line);border-radius:12px 10px 13px 9px;background:var(--paper);padding:12px;display:flex;flex-direction:column;gap:9px}
+.tile.hot{border-color:var(--energy);box-shadow:0 0 0 3px var(--energy-soft)}
+.metric{font-family:'Architects Daughter';font-size:30px;line-height:1}
+.metric .u{font-size:14px;color:var(--ink-3)}
+.divider{height:2.5px;background:var(--line);border-radius:2px;margin:4px 0}
+.divider.soft{background:var(--line-soft);height:2px}
+.scroll-y{overflow:hidden}
+.footer-hint{margin-top:40px;text-align:center;color:var(--ink-3);font-size:14px}
+.nowrap{white-space:nowrap}
+
+/* activity heatmap */
+.hm{display:flex;gap:10px;align-items:stretch}
+.hm-rows{display:flex;flex-direction:column;justify-content:space-around;padding:2px 0}
+.hm-rows .lab{font-size:13px;white-space:nowrap}
+.hm-wrap{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px}
+.hm-grid{flex:1 1 auto;display:grid;gap:3px}
+.hm-cell{border-radius:3px;background:var(--fill);border:1px solid rgba(0,0,0,.04)}
+.hm-axis{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3)}
+
+/* table */
+.tbl{width:100%;border-collapse:separate;border-spacing:0}
+.tbl th{font-family:'Architects Daughter';font-weight:400;text-align:left;font-size:13px;color:var(--ink-3);padding:8px 10px;border-bottom:2.5px solid var(--line)}
+.tbl td{padding:9px 10px;border-bottom:2px solid var(--line-soft);font-size:14px;vertical-align:middle}
+.tbl tr:hover td{background:var(--fill-2)}
+.cbx{width:16px;height:16px;border:2px solid var(--line);border-radius:4px;display:inline-block;flex:0 0 auto}
+.cbx.on{background:var(--ink);position:relative}
+.mini{height:8px;width:70px;border:1.5px solid var(--line-soft);border-radius:5px;overflow:hidden;display:inline-block}
+.mini>i{display:block;height:100%;background:var(--energy)}
+.bulkbar{display:flex;align-items:center;gap:10px;background:var(--note);border:2.5px solid #d9c25a;border-radius:9px;padding:8px 12px}

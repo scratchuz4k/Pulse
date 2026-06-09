@@ -1,0 +1,43 @@
+/* Pulse — design system */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #app {
+  margin: 0; padding: 0;
+  height: 100%; width: 100%;
+  overflow: hidden;
+}
+
+body {
+  --c-bg:        #1a1b1e;
+  --c-rail:      #111214;
+  --c-side:      #16171a;
+  --c-side-2:    #1e2024;
+  --c-border:    #2a2b30;
+  --c-border-2:  #323338;
+  --c-ink:       #f2f2f4;
+  --c-ink-2:     #c8c8d0;
+  --c-ink-3:     #8b8b96;
+  --c-ink-4:     #5e5e6a;
+  --c-ink-5:     #3e3e48;
+  --accent:      #e8722e;
+  --accent-ink:  #f08a50;
+  --accent-soft: rgba(232,114,46,.18);
+  --accent-soft2:rgba(232,114,46,.28);
+  --voice:       #e8722e;
+  --voice-ink:   #c45e20;
+  --voice-soft:  rgba(232,114,46,.12);
+  --voice-soft2: rgba(232,114,46,.22);
+  --warn:        #f0a94a;
+  --live:        #f04747;
+  --radius:      9px;
+  --radius-sm:   6px;
+  --shadow-sm:   0 1px 2px rgba(0,0,0,.3);
+  --shadow:      0 4px 16px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
+
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  background: var(--c-bg);
+  color: var(--c-ink-2);
+}

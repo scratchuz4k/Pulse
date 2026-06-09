@@ -6,7 +6,26 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
-    "preview": "electron-vite preview"
+    "preview": "electron-vite preview",
+    "dist": "npm run build && electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "com.pulse.client",
+    "productName": "Pulse",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": true,
+      "installerIcon": null,
+      "uninstallerIcon": null
+    }
   },
   "dependencies": {
     "@electron-toolkit/tsconfig": "^2.0.0",
@@ -23,6 +42,7 @@
     "@types/node": "^20.10.6",
     "@vitejs/plugin-vue": "^4.5.2",
     "electron": "^28.1.0",
+    "electron-builder": "^26.15.2",
     "electron-vite": "^2.0.0",
     "typescript": "^5.3.3",
     "vite": "^5.0.10",
