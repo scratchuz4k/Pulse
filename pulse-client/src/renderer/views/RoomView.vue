@@ -189,6 +189,7 @@
             <div v-for="p in roomStore.participants" :key="p.connectionId" class="squad-member" :class="{ speaking: activeSpeakers.includes(p.userId) }">
               <div class="sq-av-wrap">
                 <span class="sq-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
+                <!-- ROOM-02: sq-speaking-ring visible when p.userId matches LiveKit speaker identity -->
                 <span v-if="activeSpeakers.includes(p.userId)" class="sq-speaking-ring" />
               </div>
               <div class="sq-info">
