@@ -4,20 +4,22 @@ import { ref } from 'vue'
 export interface Participant {
   connectionId: string
   displayName: string
+  userId: string
+  isMuted: boolean
 }
 
 export const useRoomStore = defineStore('room', () => {
   const currentRoomName = ref<string | null>(null)
   const participants = ref<Participant[]>([])
 
-  function setRoom(roomName: string, parts: Participant[]): void {
+  function setRoom(roomName: string, parts: Omit<Participant, 'isMuted'>[]): void {
     currentRoomName.value = roomName
-    participants.value = parts
+    participants.value = parts.map(p => ({ ...p, isMuted: false }))
   }
 
-  function addParticipant(connectionId: string, displayName: string): void {
+  function addParticipant(connectionId: string, displayName: string, userId: string, isMuted: boolean = false): void {
     if (!participants.value.find((p) => p.connectionId === connectionId)) {
-      participants.value.push({ connectionId, displayName })
+      participants.value.push({ connectionId, displayName, userId, isMuted })
     }
   }
 
@@ -32,12 +34,18 @@ export const useRoomStore = defineStore('room', () => {
     participants.value = []
   }
 
+  function setParticipantMuted(connectionId: string, isMuted: boolean): void {
+    const p = participants.value.find(p => p.connectionId === connectionId)
+    if (p) p.isMuted = isMuted
+  }
+
   return {
     currentRoomName,
     participants,
     setRoom,
     addParticipant,
     removeParticipant,
-    clearRoom
+    clearRoom,
+    setParticipantMuted
   }
 })

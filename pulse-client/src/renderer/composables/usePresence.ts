@@ -29,20 +29,28 @@ export function usePresence() {
 
     hubConnection.on(
       'RoomJoined',
-      (roomName: string, participants: { connectionId: string; displayName: string }[]) => {
+      (roomName: string, participants: { connectionId: string; displayName: string; userId: string }[]) => {
         roomStore.setRoom(roomName, participants)
       }
     )
 
     hubConnection.on(
       'ParticipantJoined',
-      (connectionId: string, displayName: string) => {
-        roomStore.addParticipant(connectionId, displayName)
+      (connectionId: string, displayName: string, userId: string) => {
+        roomStore.addParticipant(connectionId, displayName, userId)
       }
     )
 
     hubConnection.on('ParticipantLeft', (connectionId: string) => {
       roomStore.removeParticipant(connectionId)
+    })
+
+    hubConnection.on('ParticipantMuted', (connectionId: string) => {
+      roomStore.setParticipantMuted(connectionId, true)
+    })
+
+    hubConnection.on('ParticipantUnmuted', (connectionId: string) => {
+      roomStore.setParticipantMuted(connectionId, false)
     })
 
     hubConnection.onreconnecting(() => {
@@ -85,5 +93,10 @@ export function usePresence() {
     connectionState.value = 'disconnected'
   }
 
-  return { connect, joinRoom, leaveRoom, disconnect, connectionState }
+  async function broadcastMuteChanged(isMuted: boolean): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('MuteChanged', isMuted)
+  }
+
+  return { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged }
 }
