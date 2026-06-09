@@ -8,9 +8,15 @@ export interface Participant {
   isMuted: boolean
 }
 
+export interface RoomInfo {
+  id: number
+  name: string
+}
+
 export const useRoomStore = defineStore('room', () => {
   const currentRoomName = ref<string | null>(null)
   const participants = ref<Participant[]>([])
+  const rooms = ref<RoomInfo[]>([])
 
   function setRoom(roomName: string, parts: Omit<Participant, 'isMuted'>[]): void {
     currentRoomName.value = roomName
@@ -39,13 +45,19 @@ export const useRoomStore = defineStore('room', () => {
     if (p) p.isMuted = isMuted
   }
 
+  function setRoomList(list: RoomInfo[]): void {
+    rooms.value = list
+  }
+
   return {
     currentRoomName,
     participants,
+    rooms,
     setRoom,
     addParticipant,
     removeParticipant,
     clearRoom,
-    setParticipantMuted
+    setParticipantMuted,
+    setRoomList
   }
 })

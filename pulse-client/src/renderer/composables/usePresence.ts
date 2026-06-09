@@ -53,6 +53,10 @@ export function usePresence() {
       roomStore.setParticipantMuted(connectionId, false)
     })
 
+    hubConnection.on('RoomListUpdated', (list: { id: number; name: string }[]) => {
+      roomStore.setRoomList(list)
+    })
+
     hubConnection.onreconnecting(() => {
       connectionState.value = 'connecting'
     })
@@ -68,6 +72,12 @@ export function usePresence() {
     try {
       await hubConnection.start()
       connectionState.value = 'connected'
+      fetch(`${serverUrl}/rooms`, {
+        headers: { Authorization: `Bearer ${authStore.accessToken}` }
+      })
+        .then(r => r.json())
+        .then((list: { id: number; name: string }[]) => roomStore.setRoomList(list))
+        .catch(e => console.error('[usePresence] failed to load rooms:', e))
     } catch (err) {
       console.error('SignalR connection error:', err)
       connectionState.value = 'error'
@@ -98,5 +108,22 @@ export function usePresence() {
     await hubConnection.invoke('MuteChanged', isMuted)
   }
 
-  return { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged }
+  async function createRoom(serverUrl: string, name: string): Promise<void> {
+    const response = await fetch(`${serverUrl}/rooms`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authStore.accessToken}`
+      },
+      body: JSON.stringify({ name })
+    })
+    if (!response.ok) {
+      if (response.status === 409) {
+        throw new Error('A room with that name already exists.')
+      }
+      throw new Error('Failed to create room.')
+    }
+  }
+
+  return { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, createRoom }
 }
