@@ -1,0 +1,24 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.db
+*.db-shm
+*.db-wal
+
+# Pulse specific
+Pulse.Server/pulse.db
+Pulse.Server/appsettings.Development.json
+
+# Logs
+*.log
+
+# NuGet
+packages/
+*.nupkg
+
+# OS
+.DS_Store
+Thumbs.db
