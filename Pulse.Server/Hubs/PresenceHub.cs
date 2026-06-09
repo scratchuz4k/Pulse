@@ -49,6 +49,19 @@ public class PresenceHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
+    public async Task MuteChanged(bool isMuted)
+    {
+        var roomName = GetRoomForConnection(Context.ConnectionId);
+        if (roomName is null) return;
+        if (_rooms.TryGetValue(roomName, out var room) &&
+            room.TryGetValue(Context.ConnectionId, out var info))
+        {
+            room[Context.ConnectionId] = info with { IsMuted = isMuted };
+        }
+        var eventName = isMuted ? "ParticipantMuted" : "ParticipantUnmuted";
+        await Clients.Group(roomName).SendAsync(eventName, Context.ConnectionId);
+    }
+
     private static string? GetRoomForConnection(string connectionId) =>
         _connectionToRoom.TryGetValue(connectionId, out var r) ? r : null;
 }
