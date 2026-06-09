@@ -1,17 +1,50 @@
 import { ref } from 'vue'
-import {
-  Room,
-  RoomEvent,
-  Track,
-} from 'livekit-client'
+import { Room, RoomEvent, Track } from 'livekit-client'
 
-// Module-level singleton — one LiveKit room per app session
+export interface AudioDevice {
+  deviceId: string
+  label: string
+}
+
 let livekitRoom: Room | null = null
+const isConnected = ref(false)
+const isMicEnabled = ref(false)
+const activeSpeakers = ref<string[]>([])
+const inputDevices = ref<AudioDevice[]>([])
+const outputDevices = ref<AudioDevice[]>([])
+const activeInputId = ref<string>('')
+const activeOutputId = ref<string>('')
+
+async function refreshDevices(unlockLabels: boolean = true): Promise<void> {
+  // getUserMedia must be called from this context to unlock device labels
+  let stream: MediaStream | null = null
+  if (unlockLabels) {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      console.log('[devices] getUserMedia ok, tracks:', stream.getTracks().map(t => t.label))
+    } catch (e) {
+      console.error('[devices] getUserMedia failed:', e)
+    }
+  }
+  const devices = await navigator.mediaDevices.enumerateDevices()
+  stream?.getTracks().forEach(t => t.stop())
+  const friendlyLabel = (d: MediaDeviceInfo, fallback: string) => {
+    if (d.label) return d.label
+    if (d.deviceId === 'default') return `Default ${fallback}`
+    if (d.deviceId === 'communications') return `Communications ${fallback}`
+    return `${fallback} (${d.deviceId.slice(0, 8)})`
+  }
+  inputDevices.value = devices
+    .filter(d => d.kind === 'audioinput')
+    .map(d => ({ deviceId: d.deviceId, label: friendlyLabel(d, 'Microphone') }))
+  outputDevices.value = devices
+    .filter(d => d.kind === 'audiooutput')
+    .map(d => ({ deviceId: d.deviceId, label: friendlyLabel(d, 'Speaker') }))
+  console.log('[LiveKit] input devices:', inputDevices.value.map(d => d.label))
+  console.log('[LiveKit] output devices:', outputDevices.value.map(d => d.label))
+}
 
 export function useLiveKit() {
-  const isConnected = ref(false)
-  const isMicEnabled = ref(false)
-  const activeSpeakers = ref<string[]>([]) // participant identities currently speaking
 
   async function connect(liveKitToken: string, liveKitHost: string): Promise<void> {
     // Clean up any existing session first
@@ -25,17 +58,21 @@ export function useLiveKit() {
       dynacast: true,
     })
 
-    // Wire room events before connecting
     room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
+      console.log('[LiveKit] track subscribed', track.kind, participant.identity)
       if (track.kind === Track.Kind.Audio) {
         const el = track.attach()
         el.id = `livekit-audio-${participant.identity}`
+        if (activeOutputId.value && typeof (el as HTMLAudioElement).setSinkId === 'function') {
+          (el as HTMLAudioElement).setSinkId(activeOutputId.value).catch(() => {})
+        }
         document.body.appendChild(el)
       }
     })
 
-    room.on(RoomEvent.TrackUnsubscribed, (track) => {
+    room.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => {
       track.detach().forEach((el) => el.remove())
+      document.getElementById(`livekit-audio-${participant.identity}`)?.remove()
     })
 
     room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
@@ -53,11 +90,41 @@ export function useLiveKit() {
     })
 
     await room.connect(liveKitHost, liveKitToken)
-    await room.localParticipant.setMicrophoneEnabled(true)
-
+    await room.startAudio()
+    console.log('[LiveKit] connected, audio unlocked, local identity:', room.localParticipant.identity)
     livekitRoom = room
     isConnected.value = true
-    isMicEnabled.value = true
+
+    try {
+      await room.localParticipant.setMicrophoneEnabled(true)
+      console.log('[LiveKit] microphone enabled')
+      isMicEnabled.value = true
+    } catch (err) {
+      console.error('[LiveKit] failed to enable microphone:', err)
+    }
+
+    // Refresh after mic is live — labels already unlocked by LiveKit mic, skip getUserMedia
+    await refreshDevices(false)
+    const currentMic = await room.getActiveDevice('audioinput')
+    const currentOut = await room.getActiveDevice('audiooutput')
+    activeInputId.value = currentMic ?? inputDevices.value[0]?.deviceId ?? ''
+    activeOutputId.value = currentOut ?? outputDevices.value[0]?.deviceId ?? ''
+  }
+
+  async function switchInput(deviceId: string): Promise<void> {
+    activeInputId.value = deviceId
+    if (livekitRoom) await livekitRoom.switchActiveDevice('audioinput', deviceId)
+  }
+
+  async function switchOutput(deviceId: string): Promise<void> {
+    activeOutputId.value = deviceId
+    // Apply to all existing remote audio elements
+    document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => {
+      if (typeof el.setSinkId === 'function') {
+        el.setSinkId(deviceId).catch((e: unknown) => console.error('[LiveKit] setSinkId failed:', e))
+      }
+    })
+    if (livekitRoom) await livekitRoom.switchActiveDevice('audiooutput', deviceId)
   }
 
   async function disconnect(): Promise<void> {
@@ -77,5 +144,9 @@ export function useLiveKit() {
     isMicEnabled.value = next
   }
 
-  return { connect, disconnect, toggleMic, isConnected, isMicEnabled, activeSpeakers }
+  return {
+    connect, disconnect, toggleMic, switchInput, switchOutput,
+    isConnected, isMicEnabled, activeSpeakers,
+    inputDevices, outputDevices, activeInputId, activeOutputId,
+  }
 }
