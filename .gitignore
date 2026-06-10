@@ -26,3 +26,6 @@ Thumbs.db
 # LiveKit
 livekit-server.exe
 livekit-keys.yaml
+
+# Graphify
+graphify-out/
