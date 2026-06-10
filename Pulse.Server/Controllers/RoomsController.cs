@@ -21,7 +21,8 @@ public class RoomsController(ILiveKitService liveKitService, AppDbContext db, IH
             .OrderBy(r => r.Name)
             .Select(r => new { r.Id, r.Name })
             .ToListAsync();
-        return Ok(rooms);
+        var payload = PresenceHub.BuildRoomListPayload(rooms.Select(r => (r.Id, r.Name)));
+        return Ok(payload);
     }
 
     [HttpPost]
@@ -50,7 +51,8 @@ public class RoomsController(ILiveKitService liveKitService, AppDbContext db, IH
             .Select(r => new { r.Id, r.Name })
             .ToListAsync();
 
-        await hubContext.Clients.All.SendAsync("RoomListUpdated", rooms);
+        var payload = PresenceHub.BuildRoomListPayload(rooms.Select(r => (r.Id, r.Name)));
+        await hubContext.Clients.All.SendAsync("RoomListUpdated", payload);
 
         return Created("", new { room.Id, room.Name });
     }
