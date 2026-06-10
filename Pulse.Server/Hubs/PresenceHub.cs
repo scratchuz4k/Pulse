@@ -1,15 +1,37 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Pulse.Server.Data;
+using Pulse.Server.Services;
 
 namespace Pulse.Server.Hubs;
 
 [Authorize]
-public class PresenceHub(AppDbContext db) : Hub
+public class PresenceHub : Hub
 {
+    private readonly AppDbContext _db;
+    private readonly ILiveKitService _liveKitService;
+    private readonly IConfiguration _configuration;
+
+    public PresenceHub(AppDbContext db, ILiveKitService liveKitService, IConfiguration configuration)
+    {
+        _db = db;
+        _liveKitService = liveKitService;
+        _configuration = configuration;
+    }
+
     private record ParticipantInfo(string DisplayName, string UserId, bool IsMuted = false, bool IsDeafened = false, bool IsPrioritySpeaker = false);
+
+    private record WhisperGroup(
+        string GroupId,
+        string Name,
+        string Visibility,
+        ConcurrentBag<string> MemberUserIds,
+        string LiveKitRoomName
+    );
 
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ParticipantInfo>>
         _rooms = new(); // roomName -> { connectionId -> ParticipantInfo }
@@ -19,6 +41,79 @@ public class PresenceHub(AppDbContext db) : Hub
 
     private static readonly ConcurrentDictionary<string, string>
         _prioritySpeakers = new(); // roomName -> userId
+
+    private static readonly ConcurrentDictionary<string, WhisperGroup>
+        _whisperGroups = new();
+
+    private static readonly ConcurrentDictionary<string, ConcurrentBag<string>>
+        _userToWhisperGroups = new();
+
+    private static readonly ConcurrentDictionary<string, string>
+        _userToConnection = new();
+
+    // ── Admin helper ─────────────────────────────────────────────────────────
+
+    private bool IsServerAdmin()
+    {
+        var callerUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                           ?? Context.User?.FindFirst("sub")?.Value;
+        var adminUserId = _configuration["Pulse:AdminUserId"]
+                          ?? Environment.GetEnvironmentVariable("PULSE_ADMIN_USER_ID");
+        return !string.IsNullOrEmpty(callerUserId) && callerUserId == adminUserId;
+    }
+
+    // ── Connection lifecycle ─────────────────────────────────────────────────
+
+    public override async Task OnConnectedAsync()
+    {
+        var userId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                     ?? Context.User?.FindFirst("sub")?.Value ?? "";
+        var displayName = Context.User?.FindFirst("displayName")?.Value ?? "Unknown";
+        if (!string.IsNullOrEmpty(userId))
+            _userToConnection[userId] = Context.ConnectionId;
+        var memberGroups = _whisperGroups.Values
+            .Where(g => g.MemberUserIds.Contains(userId))
+            .ToList();
+        if (memberGroups.Count > 0)
+        {
+            var tokens = memberGroups.Select(g => new
+            {
+                groupId = g.GroupId,
+                groupName = g.Name,
+                liveKitToken = _liveKitService.GenerateRoomToken(g.LiveKitRoomName, userId, displayName),
+                liveKitHost = _liveKitService.GetLiveKitHost()
+            }).ToList();
+            await Clients.Caller.SendAsync("JoinWhisperGroups", tokens);
+        }
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        var userId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                     ?? Context.User?.FindFirst("sub")?.Value ?? "";
+        if (!string.IsNullOrEmpty(userId))
+            _userToConnection.TryRemove(userId, out _);
+
+        bool roomListChanged = false;
+        foreach (var (roomName, room) in _rooms)
+        {
+            if (room.TryRemove(Context.ConnectionId, out _))
+            {
+                await Clients.Group(roomName).SendAsync("ParticipantLeft", Context.ConnectionId);
+                if (room.IsEmpty)
+                    await DeleteRoomAndBroadcast(roomName); // already broadcasts
+                else
+                    roomListChanged = true;
+            }
+        }
+        if (roomListChanged)
+            await BroadcastRoomListAsync();
+        _connectionToRoom.TryRemove(Context.ConnectionId, out _);
+        await base.OnDisconnectedAsync(exception);
+    }
+
+    // ── Room methods ─────────────────────────────────────────────────────────
 
     /// <summary>Returns a lightweight participant list for the given room.</summary>
     public static IEnumerable<object> GetRoomParticipants(string roomName)
@@ -71,26 +166,6 @@ public class PresenceHub(AppDbContext db) : Hub
         await Clients.Group(roomName).SendAsync("ParticipantLeft", Context.ConnectionId);
     }
 
-    public override async Task OnDisconnectedAsync(Exception? exception)
-    {
-        bool roomListChanged = false;
-        foreach (var (roomName, room) in _rooms)
-        {
-            if (room.TryRemove(Context.ConnectionId, out _))
-            {
-                await Clients.Group(roomName).SendAsync("ParticipantLeft", Context.ConnectionId);
-                if (room.IsEmpty)
-                    await DeleteRoomAndBroadcast(roomName); // already broadcasts
-                else
-                    roomListChanged = true;
-            }
-        }
-        if (roomListChanged)
-            await BroadcastRoomListAsync();
-        _connectionToRoom.TryRemove(Context.ConnectionId, out _);
-        await base.OnDisconnectedAsync(exception);
-    }
-
     public async Task MuteChanged(bool isMuted)
     {
         var roomName = GetRoomForConnection(Context.ConnectionId);
@@ -121,7 +196,7 @@ public class PresenceHub(AppDbContext db) : Hub
     {
         var callerUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                            ?? Context.User?.FindFirst("sub")?.Value;
-        var room = await db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
+        var room = await _db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
         if (room == null || room.CreatedByUserId?.ToString() != callerUserId) return;
 
         _prioritySpeakers[roomName] = targetUserId;
@@ -142,7 +217,7 @@ public class PresenceHub(AppDbContext db) : Hub
     {
         var callerUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                            ?? Context.User?.FindFirst("sub")?.Value;
-        var room = await db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
+        var room = await _db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
         if (room == null || room.CreatedByUserId?.ToString() != callerUserId) return;
 
         _prioritySpeakers.TryRemove(roomName, out _);
@@ -159,6 +234,67 @@ public class PresenceHub(AppDbContext db) : Hub
         await Clients.Group(roomName).SendAsync("PrioritySpeakerChanged", (string?)null);
     }
 
+    // ── Whisper group methods ────────────────────────────────────────────────
+
+    public async Task CreateWhisperGroup(string groupId, string name, string visibility)
+    {
+        if (!IsServerAdmin()) return;
+        if (visibility != "hidden" && visibility != "existence" && visibility != "full") return;
+        if (!Regex.IsMatch(groupId, @"^[a-zA-Z0-9-]+$")) return;
+        var liveKitRoomName = $"whisper-{groupId}";
+        var group = new WhisperGroup(groupId, name, visibility, new ConcurrentBag<string>(), liveKitRoomName);
+        if (!_whisperGroups.TryAdd(groupId, group)) return;
+        await BroadcastWhisperGroupsAsync();
+    }
+
+    public async Task AddWhisperMember(string groupId, string targetUserId)
+    {
+        if (!IsServerAdmin()) return;
+        if (!_whisperGroups.TryGetValue(groupId, out var group)) return;
+        if (group.MemberUserIds.Contains(targetUserId)) return;
+        group.MemberUserIds.Add(targetUserId);
+        _userToWhisperGroups.GetOrAdd(targetUserId, _ => new()).Add(groupId);
+        await BroadcastWhisperGroupsAsync();
+        if (_userToConnection.TryGetValue(targetUserId, out var connId))
+        {
+            var token = _liveKitService.GenerateRoomToken(group.LiveKitRoomName, targetUserId, targetUserId);
+            await Clients.Client(connId).SendAsync("WhisperGroupMemberAdded", new
+            {
+                groupId,
+                groupName = group.Name,
+                liveKitToken = token,
+                liveKitHost = _liveKitService.GetLiveKitHost()
+            });
+        }
+    }
+
+    public async Task RemoveWhisperMember(string groupId, string targetUserId)
+    {
+        if (!IsServerAdmin()) return;
+        if (!_whisperGroups.TryGetValue(groupId, out var group)) return;
+        var updated = group with { MemberUserIds = new ConcurrentBag<string>(group.MemberUserIds.Where(id => id != targetUserId)) };
+        _whisperGroups[groupId] = updated;
+        if (_userToWhisperGroups.TryGetValue(targetUserId, out var userGroups))
+            _userToWhisperGroups[targetUserId] = new ConcurrentBag<string>(userGroups.Where(id => id != groupId));
+        await BroadcastWhisperGroupsAsync();
+        if (_userToConnection.TryGetValue(targetUserId, out var connId))
+            await Clients.Client(connId).SendAsync("WhisperGroupMemberRemoved", new { groupId });
+    }
+
+    public async Task DissolveWhisperGroup(string groupId)
+    {
+        if (!IsServerAdmin()) return;
+        if (!_whisperGroups.TryRemove(groupId, out var group)) return;
+        foreach (var memberId in group.MemberUserIds)
+        {
+            if (_userToWhisperGroups.TryGetValue(memberId, out var userGroups))
+                _userToWhisperGroups[memberId] = new ConcurrentBag<string>(userGroups.Where(id => id != groupId));
+            if (_userToConnection.TryGetValue(memberId, out var connId))
+                await Clients.Client(connId).SendAsync("WhisperGroupDissolved", new { groupId });
+        }
+        await BroadcastWhisperGroupsAsync();
+    }
+
     // ── Private helpers ─────────────────────────────────────────────────────
 
     private static string? GetRoomForConnection(string connectionId) =>
@@ -166,28 +302,71 @@ public class PresenceHub(AppDbContext db) : Hub
 
     private async Task BroadcastRoomListAsync()
     {
-        var allRooms = await db.Rooms.OrderBy(r => r.Name).Select(r => new { r.Id, r.Name, r.CreatedByUserId }).ToListAsync();
+        var allRooms = await _db.Rooms.OrderBy(r => r.Name).Select(r => new { r.Id, r.Name, r.CreatedByUserId }).ToListAsync();
         var payload = BuildRoomListPayload(allRooms.Select(r => (r.Id, r.Name, r.CreatedByUserId)));
         await Clients.All.SendAsync("RoomListUpdated", payload);
     }
 
-    /// <summary>
-    /// Removes the empty room from the in-memory map, deletes it from the DB (if present),
-    /// then broadcasts an enriched RoomListUpdated to all clients.
-    /// </summary>
     private async Task DeleteRoomAndBroadcast(string roomName)
     {
         _rooms.TryRemove(roomName, out _);
         _prioritySpeakers.TryRemove(roomName, out _);
 
-        var dbRoom = await db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
+        var dbRoom = await _db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
         if (dbRoom != null)
         {
-            db.Rooms.Remove(dbRoom);
-            try { await db.SaveChangesAsync(); }
-            catch (DbUpdateConcurrencyException) { /* already deleted by a concurrent request */ }
+            _db.Rooms.Remove(dbRoom);
+            try { await _db.SaveChangesAsync(); }
+            catch (DbUpdateConcurrencyException) { /* already deleted */ }
         }
 
         await BroadcastRoomListAsync();
+    }
+
+    private async Task BroadcastWhisperGroupsAsync()
+    {
+        foreach (var (userId, connId) in _userToConnection)
+        {
+            var visibleGroups = new List<object>();
+            foreach (var g in _whisperGroups.Values)
+            {
+                var isMember = g.MemberUserIds.Contains(userId);
+                if (g.Visibility == "hidden" && !isMember) continue;
+                if (isMember)
+                {
+                    visibleGroups.Add(new
+                    {
+                        groupId = g.GroupId,
+                        name = g.Name,
+                        visibility = g.Visibility,
+                        isMember = true,
+                        memberUserIds = g.MemberUserIds.ToArray()
+                    });
+                }
+                else if (g.Visibility == "existence")
+                {
+                    visibleGroups.Add(new
+                    {
+                        groupId = g.GroupId,
+                        name = g.Name,
+                        visibility = g.Visibility,
+                        isMember = false,
+                        memberCount = g.MemberUserIds.Count
+                    });
+                }
+                else // full
+                {
+                    visibleGroups.Add(new
+                    {
+                        groupId = g.GroupId,
+                        name = g.Name,
+                        visibility = g.Visibility,
+                        isMember = false,
+                        memberUserIds = g.MemberUserIds.ToArray()
+                    });
+                }
+            }
+            await Clients.Client(connId).SendAsync("WhisperGroupsUpdated", visibleGroups);
+        }
     }
 }
