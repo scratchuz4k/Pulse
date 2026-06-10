@@ -40,17 +40,18 @@ Plans:
 - [x] 02-03-PLAN.md — Room list wiring: roomStore.rooms, RoomListUpdated listener, voice feed renders all rooms, one-click join
 - [x] 02-04-PLAN.md — Push-to-talk: globalShortcut IPC, preload bridge, usePtt composable, Settings key-capture UI
 - [x] 02-05-PLAN.md — Deafen fix + speaking indicators: prevMicEnabled save/restore, ROOM-02 userId matching verified
-- [ ] 02-06-PLAN.md — [gap] PTT global hotkey via uiohook-napi: real keydown+keyup, non-exclusive capture (UAT test 1)
-- [ ] 02-07-PLAN.md — [gap] Persist PTT vs Voice-Activity mode in electron-store (UAT test 2)
-- [ ] 02-08-PLAN.md — [gap] Room cards show participants + auto-delete empty rooms (UAT test 5)
-- [ ] 02-09-PLAN.md — [gap] Preserve mute/deafen on join + remove redundant bottom-bar ring (UAT tests 5, 6)
 
 ---
 
-### Phase 3: Priority Speaker
+### Phase 3: Priority Speaker ✅
 **Goal:** Admin can assign priority speaker; when they talk, everyone else gets ducked.
 **Mode:** mvp
 **Requirements:** PRIOR-01, PRIOR-02, PRIOR-03, PRIOR-04
+**Completed:** 2026-06-10
+**Plans:**
+- [x] 03-01-PLAN.md — Server state: AssignPrioritySpeaker/RemovePrioritySpeaker hub methods, CreatedByUserId admin stamp
+- [x] 03-02-PLAN.md — Audio ducking: applyDucking() at 0.15 volume, PrioritySpeakerChanged SignalR wiring
+- [x] 03-03-PLAN.md — Admin UI: ★ badge for all participants, assign/remove button for admin only
 **Success Criteria:**
 1. Admin can assign the priority speaker role to any participant in a room
 2. When the priority speaker transmits, all other participants hear their own incoming audio reduced by a configurable dB amount
