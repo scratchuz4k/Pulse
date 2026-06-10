@@ -3,21 +3,21 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: 2026-06-10T16:00:00.000Z
+last_updated: 2026-06-10T22:00:00.000Z
 progress:
   total_phases: 6
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 33
-stopped_at: Phase 03 complete — priority speaker server state, audio ducking, admin UI (all 3 plans closed out manually from commit 35a07b0)
+  completed_phases: 4
+  total_plans: 7
+  completed_plans: 7
+  percent: 67
+stopped_at: Phase 04 complete — whisper side-channel: server hub (04-01), multi-room LiveKit (04-02), IPC+store+SignalR wiring (04-03), WhisperPanel UI (04-04)
 ---
 
 # Pulse — Project State
 
 ## Current Phase
 
-**Phase 4: Whisper Side-Channel** — Not started
+**Phase 5: Text Channels** — Not started
 
 ## Phase Status
 
@@ -26,13 +26,13 @@ stopped_at: Phase 03 complete — priority speaker server state, audio ducking, 
 | 1 | Two Clients Talking | ✅ Complete |
 | 2 | Full Room Experience | ✅ Complete |
 | 3 | Priority Speaker | ✅ Complete |
-| 4 | Whisper Side-Channel | 🔲 Not started |
+| 4 | Whisper Side-Channel | ✅ Complete |
 | 5 | Text Channels | 🔲 Not started |
 | 6 | Pulse Activity Feed | 🔲 Not started |
 
 ## Last Action
 
-Phase 03 all 3 plans closed out manually — 2026-06-10 (priority speaker: server state + broadcast, audio ducking at 0.15, admin UI with ★ badge; summaries written from commit 35a07b0)
+Phase 04 all 4 plans complete — 2026-06-10 (whisper server hub, multi-room LiveKit refactor, IPC+store+SignalR wiring, WhisperPanel UI + RoomView tab switcher)
 
 ## Decisions
 

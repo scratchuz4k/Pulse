@@ -61,23 +61,22 @@ Plans:
 
 ---
 
-### Phase 4: Whisper Side-Channel
+### Phase 4: Whisper Side-Channel ✅
 **Goal:** Admin-defined whisper groups create a private parallel audio layer inside a room.
 **Mode:** mvp
 **Requirements:** WHISP-01, WHISP-02, WHISP-03, WHISP-04
-**Plans:** 4 plans
+**Completed:** 2026-06-10
+**Plans:**
+- [x] 04-01-PLAN.md — Server hub: whisper CRUD methods, OnConnectedAsync token push, admin check, visibility-aware broadcast
+- [x] 04-02-PLAN.md — useLiveKit Map refactor: mainRoom + whisperRooms Map, connectWhisper/disconnectWhisper, ducking/output fix
+- [x] 04-03-PLAN.md — Electron IPC + Pinia store + SignalR listeners: whisper PTT uiohook, useWhisperStore, usePresence wiring
+- [x] 04-04-PLAN.md — WhisperPanel.vue + RoomView tab switcher: group cards, speaking indicators, transmit mode, PTT key-capture, admin controls
 **Success Criteria:**
 1. Admin can create a whisper group — a named set of users in the current room
 2. Whisper group members receive audio from other group members on a separate audio layer that non-members cannot hear
 3. Whisper audio plays simultaneously with main room audio (not a mode switch)
 4. All participants can see whether a whisper group is active and whether they belong to it
 5. Non-members confirm in testing they hear no whisper audio
-
-Plans:
-- [ ] 04-01-PLAN.md — Server hub: whisper CRUD methods, OnConnectedAsync token push, admin check, visibility-aware broadcast
-- [ ] 04-02-PLAN.md — useLiveKit Map refactor: mainRoom + whisperRooms Map, connectWhisper/disconnectWhisper, ducking/output fix
-- [ ] 04-03-PLAN.md — Electron IPC + Pinia store + SignalR listeners: whisper PTT uiohook, useWhisperStore, usePresence wiring
-- [ ] 04-04-PLAN.md — WhisperPanel.vue + RoomView tab switcher: group cards, speaking indicators, transmit mode, PTT key-capture, admin controls
 
 ---
 
