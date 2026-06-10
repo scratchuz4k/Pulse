@@ -46,7 +46,7 @@ async function refreshDevices(unlockLabels: boolean = true): Promise<void> {
 
 export function useLiveKit() {
 
-  async function connect(liveKitToken: string, liveKitHost: string): Promise<void> {
+  async function connect(liveKitToken: string, liveKitHost: string, desiredMicEnabled: boolean = true): Promise<void> {
     // Clean up any existing session first
     if (livekitRoom) {
       await livekitRoom.disconnect()
@@ -96,11 +96,11 @@ export function useLiveKit() {
     isConnected.value = true
 
     try {
-      await room.localParticipant.setMicrophoneEnabled(true)
-      console.log('[LiveKit] microphone enabled')
-      isMicEnabled.value = true
+      await room.localParticipant.setMicrophoneEnabled(desiredMicEnabled)
+      console.log('[LiveKit] microphone', desiredMicEnabled ? 'enabled' : 'disabled')
+      isMicEnabled.value = desiredMicEnabled
     } catch (err) {
-      console.error('[LiveKit] failed to enable microphone:', err)
+      console.error('[LiveKit] failed to set microphone state:', err)
     }
 
     // Refresh after mic is live — labels already unlocked by LiveKit mic, skip getUserMedia
