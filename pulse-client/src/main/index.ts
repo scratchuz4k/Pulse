@@ -121,6 +121,12 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('ptt:get-key', () => store.get('ptt.key') ?? null)
 
+  ipcMain.handle('ptt:get-mode', () => (store.get('ptt.mode') as boolean | undefined) ?? false)
+
+  ipcMain.handle('ptt:set-mode', (_event, enabled: boolean) => {
+    store.set('ptt.mode', !!enabled)
+  })
+
   ipcMain.handle('ptt:set-key', (_event, accelerator: string | null) => {
     if (!accelerator || typeof accelerator !== 'string' || !accelerator.trim()) return false
     const keycode = acceleratorToUiohookKey(accelerator)
