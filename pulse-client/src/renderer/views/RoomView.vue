@@ -291,12 +291,8 @@
         </div>
       </div>
 
-      <div class="vb-avatars">
-        <span v-for="p in roomStore.participants.slice(0, 4)" :key="p.connectionId" class="vb-av" :class="{ muted: p.isMuted }" :style="{ background: avatarColor(p.displayName) }" :title="p.displayName">{{ initials(p.displayName) }}</span>
-        <span v-if="roomStore.participants.length > 4" class="vb-av vb-av-more">+{{ roomStore.participants.length - 4 }}</span>
-      </div>
 
-      <div class="vb-controls">
+<div class="vb-controls">
         <button class="vb-btn" :class="{ muted: !isMicEnabled || isDeafened }" :disabled="isDeafened" :title="isDeafened ? 'Muted (deafened)' : isMicEnabled ? 'Mute' : 'Unmute'" @click="handleToggleMic">
           <svg v-if="isMicEnabled" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
@@ -913,18 +909,6 @@ void connectionState
 .vb-count { font-size: 11px; font-weight: 500; color: var(--c-ink-4); }
 .vb-speaking { display: block; font-size: 11px; color: var(--voice); font-weight: 500; white-space: nowrap; }
 
-.vb-avatars { display: flex; flex: 0 0 auto; }
-.vb-av {
-  width: 26px; height: 26px; border-radius: 50%;
-  color: #fff; font-size: 9px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  border: 2px solid var(--c-rail);
-  margin-left: -6px; flex: 0 0 auto;
-  transition: box-shadow .15s;
-}
-.vb-av:first-child { margin-left: 0; }
-.vb-av.muted { box-shadow: 0 0 0 2px var(--live); }
-.vb-av-more { background: var(--c-side-2); color: var(--c-ink-4); }
 
 .vb-controls { display: flex; gap: 4px; margin-left: auto; }
 
