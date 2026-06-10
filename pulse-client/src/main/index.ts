@@ -38,6 +38,23 @@ function getPttKeycode(): number | null {
   return code || null
 }
 
+function getWhisperPttKeycodes(): Array<{ groupId: string; keycode: number }> {
+  const result: Array<{ groupId: string; keycode: number }> = []
+  const storeData = store.store as Record<string, unknown>
+  for (const key of Object.keys(storeData)) {
+    const match = key.match(/^whisper\.(.+)\.pttKey$/)
+    if (!match) continue
+    const groupId = match[1]
+    const accelerator = storeData[key] as string | undefined
+    if (!accelerator) continue
+    const keycode = ACCELERATOR_TO_UIOHOOK[accelerator]
+    if (keycode && keycode !== 0) {
+      result.push({ groupId, keycode })
+    }
+  }
+  return result
+}
+
 async function createStore(): Promise<void> {
   const key = await machineId()
   store = new Store({ encryptionKey: key })
@@ -110,6 +127,41 @@ app.whenReady().then(async () => {
     return true
   })
 
+  ipcMain.handle('whisper-ptt:set-key', (_event, groupId: string, accelerator: string | null) => {
+    if (!groupId || typeof groupId !== 'string') return false
+    if (!accelerator || typeof accelerator !== 'string' || !accelerator.trim()) {
+      store.delete(`whisper.${groupId}.pttKey`)
+      return true
+    }
+    const keycode = ACCELERATOR_TO_UIOHOOK[accelerator]
+    if (!keycode) return false
+    store.set(`whisper.${groupId}.pttKey`, accelerator)
+    return true
+  })
+
+  ipcMain.handle('whisper-ptt:get-key', (_event, groupId: string) => {
+    return (store.get(`whisper.${groupId}.pttKey`) as string | undefined) ?? null
+  })
+
+  ipcMain.handle('whisper:set-transmit-mode', (_event, groupId: string, mode: string) => {
+    if (!['both', 'ptt', 'whisperOnly'].includes(mode)) return false
+    store.set(`whisper.${groupId}.transmitMode`, mode)
+    return true
+  })
+
+  ipcMain.handle('whisper:get-transmit-mode', (_event, groupId: string) => {
+    return (store.get(`whisper.${groupId}.transmitMode`) as string | undefined) ?? 'both'
+  })
+
+  ipcMain.handle('whisper:set-suppress-main', (_event, groupId: string, suppress: boolean) => {
+    store.set(`whisper.${groupId}.suppressMain`, !!suppress)
+    return true
+  })
+
+  ipcMain.handle('whisper:get-suppress-main', (_event, groupId: string) => {
+    return (store.get(`whisper.${groupId}.suppressMain`) as boolean | undefined) ?? false
+  })
+
   createWindow()
 
   // Global PTT hook — WH_KEYBOARD_LL on Windows: passively listens, always calls
@@ -119,11 +171,23 @@ app.whenReady().then(async () => {
     if (code && e.keycode === code) {
       mainWindow?.webContents.send('ptt:keydown')
     }
+    const whisperKeys = getWhisperPttKeycodes()
+    for (const { groupId, keycode } of whisperKeys) {
+      if (e.keycode === keycode) {
+        mainWindow?.webContents.send('whisper-ptt:keydown', groupId)
+      }
+    }
   })
   uIOhook.on('keyup', (e) => {
     const code = getPttKeycode()
     if (code && e.keycode === code) {
       mainWindow?.webContents.send('ptt:keyup')
+    }
+    const whisperKeys = getWhisperPttKeycodes()
+    for (const { groupId, keycode } of whisperKeys) {
+      if (e.keycode === keycode) {
+        mainWindow?.webContents.send('whisper-ptt:keyup', groupId)
+      }
     }
   })
   uIOhook.start()

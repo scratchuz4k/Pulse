@@ -1,7 +1,8 @@
 import * as signalR from '@microsoft/signalr'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRoomStore } from '../stores/room'
+import { useWhisperStore, type WhisperGroupEntry } from '../stores/whisper'
 import { useLiveKit } from './useLiveKit'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -76,6 +77,57 @@ export function usePresence() {
       setPrioritySpeaker(userId)
       roomStore.setPrioritySpeaker(userId)
     })
+
+    hubConnection.on('JoinWhisperGroups', async (tokenList: Array<{
+      groupId: string; groupName: string; liveKitToken: string; liveKitHost: string
+    }>) => {
+      const { connectWhisper } = useLiveKit()
+      for (const entry of tokenList) {
+        await connectWhisper(entry.groupId, entry.liveKitToken, entry.liveKitHost)
+      }
+      console.log('[usePresence] JoinWhisperGroups: connected to', tokenList.length, 'whisper rooms')
+    })
+
+    hubConnection.on('WhisperGroupMemberAdded', async (payload: {
+      groupId: string; groupName: string; liveKitToken: string; liveKitHost: string
+    }) => {
+      const { connectWhisper } = useLiveKit()
+      await connectWhisper(payload.groupId, payload.liveKitToken, payload.liveKitHost)
+      console.log('[usePresence] WhisperGroupMemberAdded:', payload.groupId)
+    })
+
+    hubConnection.on('WhisperGroupMemberRemoved', async (payload: { groupId: string }) => {
+      const { disconnectWhisper } = useLiveKit()
+      const whisperStore = useWhisperStore()
+      await disconnectWhisper(payload.groupId)
+      whisperStore.removeGroup(payload.groupId)
+      console.log('[usePresence] WhisperGroupMemberRemoved:', payload.groupId)
+    })
+
+    hubConnection.on('WhisperGroupDissolved', async (payload: { groupId: string }) => {
+      const { disconnectWhisper } = useLiveKit()
+      const whisperStore = useWhisperStore()
+      await disconnectWhisper(payload.groupId)
+      whisperStore.removeGroup(payload.groupId)
+      console.log('[usePresence] WhisperGroupDissolved:', payload.groupId)
+    })
+
+    hubConnection.on('WhisperGroupsUpdated', (groupList: WhisperGroupEntry[]) => {
+      const whisperStore = useWhisperStore()
+      whisperStore.setGroups(groupList)
+    })
+
+    const { whisperActiveSpeakers } = useLiveKit()
+    watch(
+      whisperActiveSpeakers,
+      (map) => {
+        const whisperStore = useWhisperStore()
+        map.forEach((speakerIds, groupId) => {
+          whisperStore.setSpeakers(groupId, speakerIds)
+        })
+      },
+      { deep: true }
+    )
 
     hubConnection.onreconnecting(() => {
       connectionState.value = 'connecting'
@@ -176,5 +228,30 @@ export function usePresence() {
     roomStore.setRoomList(list)
   }
 
-  return { connect, fetchRooms, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, broadcastDeafenChanged, createRoom, assignPrioritySpeaker, removePrioritySpeaker }
+  async function createWhisperGroup(groupId: string, name: string, visibility: string): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('CreateWhisperGroup', groupId, name, visibility)
+  }
+
+  async function addWhisperMember(groupId: string, targetUserId: string): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('AddWhisperMember', groupId, targetUserId)
+  }
+
+  async function removeWhisperMember(groupId: string, targetUserId: string): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('RemoveWhisperMember', groupId, targetUserId)
+  }
+
+  async function dissolveWhisperGroup(groupId: string): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('DissolveWhisperGroup', groupId)
+  }
+
+  return {
+    connect, fetchRooms, joinRoom, leaveRoom, disconnect, connectionState,
+    broadcastMuteChanged, broadcastDeafenChanged, createRoom,
+    assignPrioritySpeaker, removePrioritySpeaker,
+    createWhisperGroup, addWhisperMember, removeWhisperMember, dissolveWhisperGroup
+  }
 }
