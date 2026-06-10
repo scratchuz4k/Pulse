@@ -46,6 +46,10 @@ public class PresenceHub(AppDbContext db) : Hub
         var participants = _rooms.GetValueOrDefault(roomName, new())
             .Select(kv => new { connectionId = kv.Key, displayName = kv.Value.DisplayName, userId = kv.Value.UserId });
         await Clients.Caller.SendAsync("RoomJoined", roomName, participants);
+
+        var allRooms = await db.Rooms.OrderBy(r => r.Name).Select(r => new { r.Id, r.Name }).ToListAsync();
+        var payload = BuildRoomListPayload(allRooms.Select(r => (r.Id, r.Name)));
+        await Clients.All.SendAsync("RoomListUpdated", payload);
     }
 
     public async Task LeaveRoom(string roomName)

@@ -171,7 +171,7 @@
             <!-- Other rooms the user is NOT in -->
             <template v-for="room in roomStore.rooms" :key="room.id">
               <div
-                v-if="room.name !== roomStore.currentRoomName"
+                v-if="room.name !== roomStore.currentRoomName && room.participants.length > 0"
                 class="room-card joinable"
                 @click="handleJoinRoom(room.name)"
               >
