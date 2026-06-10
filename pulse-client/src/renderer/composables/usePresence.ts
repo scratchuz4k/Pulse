@@ -7,6 +7,7 @@ import { useLiveKit } from './useLiveKit'
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 let hubConnection: signalR.HubConnection | null = null
+let lastServerUrl: string | null = null
 const connectionState = ref<ConnectionState>('disconnected')
 
 export function usePresence() {
@@ -14,11 +15,15 @@ export function usePresence() {
   const roomStore = useRoomStore()
 
   async function connect(serverUrl: string): Promise<void> {
+    if (hubConnection && hubConnection.state === signalR.HubConnectionState.Connected) {
+      return
+    }
     if (hubConnection) {
       await disconnect()
     }
 
     connectionState.value = 'connecting'
+    lastServerUrl = serverUrl
 
     hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(`${serverUrl}/hubs/presence`, {
@@ -78,6 +83,14 @@ export function usePresence() {
 
     hubConnection.onreconnected(() => {
       connectionState.value = 'connected'
+      if (lastServerUrl) {
+        fetch(`${lastServerUrl}/rooms`, {
+          headers: { Authorization: `Bearer ${authStore.accessToken}` }
+        })
+          .then(r => r.json())
+          .then((list: { id: number; name: string; participants: { displayName: string; userId: string }[] }[]) => roomStore.setRoomList(list))
+          .catch(e => console.error('[usePresence] reconnect room refresh failed:', e))
+      }
     })
 
     hubConnection.onclose(() => {
@@ -155,5 +168,13 @@ export function usePresence() {
     await hubConnection.invoke('RemovePrioritySpeaker', roomName)
   }
 
-  return { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, broadcastDeafenChanged, createRoom, assignPrioritySpeaker, removePrioritySpeaker }
+  async function fetchRooms(serverUrl: string): Promise<void> {
+    const res = await fetch(`${serverUrl}/rooms`, {
+      headers: { Authorization: `Bearer ${authStore.accessToken}` }
+    })
+    const list = await res.json()
+    roomStore.setRoomList(list)
+  }
+
+  return { connect, fetchRooms, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, broadcastDeafenChanged, createRoom, assignPrioritySpeaker, removePrioritySpeaker }
 }

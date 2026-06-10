@@ -52,7 +52,7 @@ export function useLiveKit() {
     const psIsSpeaking = activeSpeakerIdentities.includes(prioritySpeakerId.value)
     document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => {
       const identity = el.id.replace('livekit-audio-', '')
-      el.volume = psIsSpeaking && identity !== prioritySpeakerId.value ? 0.15 : 1.0
+      el.volume = psIsSpeaking && identity !== prioritySpeakerId.value ? 0 : 1.0
     })
   }
 

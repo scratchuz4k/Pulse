@@ -29,11 +29,12 @@ public class PresenceHub(AppDbContext db) : Hub
     }
 
     /// <summary>Builds the enriched room list payload used in RoomListUpdated broadcasts.</summary>
-    public static IEnumerable<object> BuildRoomListPayload(IEnumerable<(int Id, string Name)> rooms) =>
+    public static IEnumerable<object> BuildRoomListPayload(IEnumerable<(int Id, string Name, Guid? CreatedByUserId)> rooms) =>
         rooms.Select(r => (object)new
         {
             id = r.Id,
             name = r.Name,
+            createdByUserId = r.CreatedByUserId,
             participants = GetRoomParticipants(r.Name)
         });
 
@@ -52,9 +53,7 @@ public class PresenceHub(AppDbContext db) : Hub
         if (_prioritySpeakers.TryGetValue(roomName, out var ps))
             await Clients.Caller.SendAsync("PrioritySpeakerChanged", ps);
 
-        var allRooms = await db.Rooms.OrderBy(r => r.Name).Select(r => new { r.Id, r.Name }).ToListAsync();
-        var payload = BuildRoomListPayload(allRooms.Select(r => (r.Id, r.Name)));
-        await Clients.All.SendAsync("RoomListUpdated", payload);
+        await BroadcastRoomListAsync();
     }
 
     public async Task LeaveRoom(string roomName)
@@ -64,6 +63,8 @@ public class PresenceHub(AppDbContext db) : Hub
             room.TryRemove(Context.ConnectionId, out _);
             if (room.IsEmpty)
                 await DeleteRoomAndBroadcast(roomName);
+            else
+                await BroadcastRoomListAsync();
         }
         _connectionToRoom.TryRemove(Context.ConnectionId, out _);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomName);
@@ -72,15 +73,20 @@ public class PresenceHub(AppDbContext db) : Hub
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        bool roomListChanged = false;
         foreach (var (roomName, room) in _rooms)
         {
             if (room.TryRemove(Context.ConnectionId, out _))
             {
                 await Clients.Group(roomName).SendAsync("ParticipantLeft", Context.ConnectionId);
                 if (room.IsEmpty)
-                    await DeleteRoomAndBroadcast(roomName);
+                    await DeleteRoomAndBroadcast(roomName); // already broadcasts
+                else
+                    roomListChanged = true;
             }
         }
+        if (roomListChanged)
+            await BroadcastRoomListAsync();
         _connectionToRoom.TryRemove(Context.ConnectionId, out _);
         await base.OnDisconnectedAsync(exception);
     }
@@ -158,6 +164,13 @@ public class PresenceHub(AppDbContext db) : Hub
     private static string? GetRoomForConnection(string connectionId) =>
         _connectionToRoom.TryGetValue(connectionId, out var r) ? r : null;
 
+    private async Task BroadcastRoomListAsync()
+    {
+        var allRooms = await db.Rooms.OrderBy(r => r.Name).Select(r => new { r.Id, r.Name, r.CreatedByUserId }).ToListAsync();
+        var payload = BuildRoomListPayload(allRooms.Select(r => (r.Id, r.Name, r.CreatedByUserId)));
+        await Clients.All.SendAsync("RoomListUpdated", payload);
+    }
+
     /// <summary>
     /// Removes the empty room from the in-memory map, deletes it from the DB (if present),
     /// then broadcasts an enriched RoomListUpdated to all clients.
@@ -175,12 +188,6 @@ public class PresenceHub(AppDbContext db) : Hub
             catch (DbUpdateConcurrencyException) { /* already deleted by a concurrent request */ }
         }
 
-        var remainingRooms = await db.Rooms
-            .OrderBy(r => r.Name)
-            .Select(r => new { r.Id, r.Name })
-            .ToListAsync();
-
-        var payload = BuildRoomListPayload(remainingRooms.Select(r => (r.Id, r.Name)));
-        await Clients.All.SendAsync("RoomListUpdated", payload);
+        await BroadcastRoomListAsync();
     }
 }

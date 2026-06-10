@@ -2,8 +2,17 @@
   <div class="login-shell">
     <div class="login-card">
       <div class="login-logo">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        <svg
+          viewBox="0 0 24 24"
+          width="28"
+          height="28"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
       </div>
       <h1 class="login-title">Pulse</h1>
@@ -12,18 +21,46 @@
       <form class="login-form" @submit.prevent>
         <label class="field-label">
           Display Name
-          <input v-model="displayName" class="field-input" type="text" placeholder="Your name" autocomplete="username" required />
+          <input
+            v-model="displayName"
+            class="field-input"
+            type="text"
+            placeholder="Your name"
+            autocomplete="username"
+            required
+          />
         </label>
         <label class="field-label">
           Password
-          <input v-model="password" class="field-input" type="password" placeholder="Password" autocomplete="current-password" required />
+          <input
+            v-model="password"
+            class="field-input"
+            type="password"
+            placeholder="Password"
+            autocomplete="current-password"
+            required
+          />
         </label>
 
         <div v-if="errorMessage" class="login-error">{{ errorMessage }}</div>
 
         <div class="login-actions">
-          <button class="btn-secondary" type="button" :disabled="loading" @click="handleRegister">Register</button>
-          <button class="btn-primary" type="button" :disabled="loading" @click="handleLogin">Log in</button>
+          <button
+            class="btn-secondary"
+            type="button"
+            :disabled="loading"
+            @click="handleRegister"
+          >
+            Register
+          </button>
+          <button
+            class="btn-primary"
+            type="button"
+            :disabled="loading"
+            @click="handleLogin"
+          >
+            Log in
+          </button>
         </div>
       </form>
     </div>
@@ -31,41 +68,42 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuth } from '../composables/useAuth'
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { useAuth } from "../composables/useAuth";
 
-const router = useRouter()
-const { register, login } = useAuth()
+const router = useRouter();
+const { register, login } = useAuth();
 
-const displayName = ref('')
-const password = ref('')
-const errorMessage = ref('')
-const loading = ref(false)
+const displayName = ref("");
+const password = ref("");
+const errorMessage = ref("");
+const loading = ref(false);
 
 async function handleRegister(): Promise<void> {
-  errorMessage.value = ''
-  loading.value = true
+  errorMessage.value = "";
+  loading.value = true;
   try {
-    await register(displayName.value, password.value)
-    router.push('/room')
+    await register(displayName.value, password.value);
+    router.push("/dashboard");
   } catch (err: unknown) {
-    errorMessage.value = err instanceof Error ? err.message : 'Registration failed'
+    errorMessage.value =
+      err instanceof Error ? err.message : "Registration failed";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function handleLogin(): Promise<void> {
-  errorMessage.value = ''
-  loading.value = true
+  errorMessage.value = "";
+  loading.value = true;
   try {
-    await login(displayName.value, password.value)
-    router.push('/room')
+    await login(displayName.value, password.value);
+    router.push("/dashboard");
   } catch (err: unknown) {
-    errorMessage.value = err instanceof Error ? err.message : 'Login failed'
+    errorMessage.value = err instanceof Error ? err.message : "Login failed";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 </script>
@@ -94,11 +132,14 @@ async function handleLogin(): Promise<void> {
 }
 
 .login-logo {
-  width: 52px; height: 52px;
+  width: 52px;
+  height: 52px;
   border-radius: 16px;
   background: var(--accent);
   color: #fff;
-  display: flex; align-items: center; justify-content: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 6px;
 }
 
@@ -107,7 +148,7 @@ async function handleLogin(): Promise<void> {
   font-size: 22px;
   font-weight: 800;
   color: var(--c-ink);
-  letter-spacing: -.02em;
+  letter-spacing: -0.02em;
 }
 
 .login-sub {
@@ -132,7 +173,7 @@ async function handleLogin(): Promise<void> {
   font-weight: 700;
   color: var(--c-ink-3);
   text-transform: uppercase;
-  letter-spacing: .05em;
+  letter-spacing: 0.05em;
 }
 
 .field-input {
@@ -145,18 +186,23 @@ async function handleLogin(): Promise<void> {
   font-family: inherit;
   color: var(--c-ink);
   outline: none;
-  transition: border-color .12s;
+  transition: border-color 0.12s;
 }
-.field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-.field-input::placeholder { color: var(--c-ink-5); }
+.field-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.field-input::placeholder {
+  color: var(--c-ink-5);
+}
 
 .login-error {
   font-size: 13px;
   color: var(--live);
   padding: 8px 12px;
-  background: rgba(229,72,77,.08);
+  background: rgba(229, 72, 77, 0.08);
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(229,72,77,.2);
+  border: 1px solid rgba(229, 72, 77, 0.2);
 }
 
 .login-actions {
@@ -165,7 +211,8 @@ async function handleLogin(): Promise<void> {
   margin-top: 4px;
 }
 
-.btn-primary, .btn-secondary {
+.btn-primary,
+.btn-secondary {
   flex: 1;
   height: 38px;
   border: none;
@@ -174,15 +221,26 @@ async function handleLogin(): Promise<void> {
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  transition: opacity .12s;
+  transition: opacity 0.12s;
 }
-.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
 .btn-secondary {
   background: var(--c-side-2);
   color: var(--c-ink-2);
   border: 1px solid var(--c-border-2);
 }
-.btn-primary:disabled, .btn-secondary:disabled { opacity: .45; cursor: default; }
-.btn-primary:not(:disabled):hover { opacity: .88; }
-.btn-secondary:not(:disabled):hover { background: var(--c-side); }
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.btn-primary:not(:disabled):hover {
+  opacity: 0.88;
+}
+.btn-secondary:not(:disabled):hover {
+  background: var(--c-side);
+}
 </style>
