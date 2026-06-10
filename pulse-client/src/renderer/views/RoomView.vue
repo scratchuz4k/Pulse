@@ -143,8 +143,9 @@
           </div>
         </div>
 
-        <!-- Sidebar with tab switcher -->
-        <div class="side-tabs">
+        <!-- Resizable sidebar -->
+        <div class="side-resizer" @mousedown="startResize" />
+        <div class="side-tabs" :style="{ width: sideWidth + 'px', flex: `0 0 ${sideWidth}px` }">
           <div class="side-tab-bar">
             <button
               class="side-tab-btn"
@@ -200,6 +201,23 @@ const { isPttMode, pttBinding } = usePtt();
 const roomNameInput = ref("");
 const joining = ref(false);
 const sideTab = ref<'participants' | 'whisper'>('participants');
+const sideWidth = ref(320);
+
+function startResize(e: MouseEvent): void {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = sideWidth.value;
+  function onMove(ev: MouseEvent): void {
+    const delta = startX - ev.clientX;
+    sideWidth.value = Math.max(180, Math.min(600, startWidth + delta));
+  }
+  function onUp(): void {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
 const joinError = ref("");
 const showJoinForm = ref(false);
 
@@ -585,9 +603,21 @@ void isConnected;
   font-size: 14px;
 }
 
+.side-resizer {
+  width: 5px;
+  flex: 0 0 5px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+  position: relative;
+  z-index: 1;
+}
+.side-resizer:hover,
+.side-resizer:active {
+  background: var(--accent);
+}
 .side-tabs {
-  width: 320px;
-  flex: 0 0 320px;
+  /* width and flex set inline via sideWidth binding */
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--c-border);
