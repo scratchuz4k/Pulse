@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 
 const CODE_TO_ACCELERATOR: Record<string, string> = {
   Space: 'Space',
@@ -33,6 +33,9 @@ export function usePtt() {
   onMounted(async () => {
     const saved = await window.pulseApi.getPttKey()
     if (saved) pttBinding.value = { accelerator: saved, label: saved }
+    const savedMode = await window.pulseApi.getPttMode()
+    isPttMode.value = savedMode
+    watch(isPttMode, (v) => { window.pulseApi.setPttMode(v) })
   })
 
   onUnmounted(() => {
