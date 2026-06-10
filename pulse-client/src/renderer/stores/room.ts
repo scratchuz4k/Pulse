@@ -9,9 +9,15 @@ export interface Participant {
   isDeafened: boolean
 }
 
+export interface RoomParticipantSummary {
+  displayName: string
+  userId: string
+}
+
 export interface RoomInfo {
   id: number
   name: string
+  participants: RoomParticipantSummary[]
 }
 
 export const useRoomStore = defineStore('room', () => {
@@ -52,7 +58,7 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   function setRoomList(list: RoomInfo[]): void {
-    rooms.value = list
+    rooms.value = list.map(r => ({ ...r, participants: r.participants ?? [] }))
   }
 
   return {

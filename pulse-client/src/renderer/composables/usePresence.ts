@@ -61,7 +61,7 @@ export function usePresence() {
       roomStore.setParticipantDeafened(connectionId, false)
     })
 
-    hubConnection.on('RoomListUpdated', (list: { id: number; name: string }[]) => {
+    hubConnection.on('RoomListUpdated', (list: { id: number; name: string; participants: { displayName: string; userId: string }[] }[]) => {
       roomStore.setRoomList(list)
     })
 
@@ -84,7 +84,7 @@ export function usePresence() {
         headers: { Authorization: `Bearer ${authStore.accessToken}` }
       })
         .then(r => r.json())
-        .then((list: { id: number; name: string }[]) => roomStore.setRoomList(list))
+        .then((list: { id: number; name: string; participants: { displayName: string; userId: string }[] }[]) => roomStore.setRoomList(list))
         .catch(e => console.error('[usePresence] failed to load rooms:', e))
     } catch (err) {
       console.error('SignalR connection error:', err)
