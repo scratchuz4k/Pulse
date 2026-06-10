@@ -2,6 +2,7 @@ import * as signalR from '@microsoft/signalr'
 import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRoomStore } from '../stores/room'
+import { useLiveKit } from './useLiveKit'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
 
@@ -61,8 +62,14 @@ export function usePresence() {
       roomStore.setParticipantDeafened(connectionId, false)
     })
 
-    hubConnection.on('RoomListUpdated', (list: { id: number; name: string; participants: { displayName: string; userId: string }[] }[]) => {
+    hubConnection.on('RoomListUpdated', (list: { id: number; name: string; createdByUserId?: string; participants: { displayName: string; userId: string }[] }[]) => {
       roomStore.setRoomList(list)
+    })
+
+    hubConnection.on('PrioritySpeakerChanged', (userId: string | null) => {
+      const { setPrioritySpeaker } = useLiveKit()
+      setPrioritySpeaker(userId)
+      roomStore.setPrioritySpeaker(userId)
     })
 
     hubConnection.onreconnecting(() => {
@@ -138,5 +145,15 @@ export function usePresence() {
     }
   }
 
-  return { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, broadcastDeafenChanged, createRoom }
+  async function assignPrioritySpeaker(roomName: string, userId: string): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('AssignPrioritySpeaker', roomName, userId)
+  }
+
+  async function removePrioritySpeaker(roomName: string): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('RemovePrioritySpeaker', roomName)
+  }
+
+  return { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, broadcastDeafenChanged, createRoom, assignPrioritySpeaker, removePrioritySpeaker }
 }

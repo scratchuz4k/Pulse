@@ -19,10 +19,10 @@ public class RoomsController(ILiveKitService liveKitService, AppDbContext db, IH
     {
         var rooms = await db.Rooms
             .OrderBy(r => r.Name)
-            .Select(r => new { r.Id, r.Name })
+            .Select(r => new { r.Id, r.Name, r.CreatedByUserId })
             .ToListAsync();
         var payload = PresenceHub.BuildRoomListPayload(rooms.Select(r => (r.Id, r.Name)));
-        return Ok(payload);
+        return Ok(rooms);
     }
 
     [HttpPost]
@@ -34,7 +34,11 @@ public class RoomsController(ILiveKitService liveKitService, AppDbContext db, IH
         if (req.Name.Trim().Length > 80)
             return BadRequest(new { error = "Room name must be 80 characters or fewer." });
 
-        var room = new Room { Name = req.Name.Trim(), CreatedAt = DateTime.UtcNow };
+        var creatorId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                        ?? User.FindFirst("sub")?.Value;
+        _ = Guid.TryParse(creatorId, out var creatorGuid);
+
+        var room = new Room { Name = req.Name.Trim(), CreatedAt = DateTime.UtcNow, CreatedByUserId = creatorGuid };
         db.Rooms.Add(room);
 
         try

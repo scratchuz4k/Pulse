@@ -9,13 +9,16 @@ namespace Pulse.Server.Hubs;
 [Authorize]
 public class PresenceHub(AppDbContext db) : Hub
 {
-    private record ParticipantInfo(string DisplayName, string UserId, bool IsMuted = false, bool IsDeafened = false);
+    private record ParticipantInfo(string DisplayName, string UserId, bool IsMuted = false, bool IsDeafened = false, bool IsPrioritySpeaker = false);
 
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ParticipantInfo>>
         _rooms = new(); // roomName -> { connectionId -> ParticipantInfo }
 
     private static readonly ConcurrentDictionary<string, string>
         _connectionToRoom = new(); // connectionId -> roomName
+
+    private static readonly ConcurrentDictionary<string, string>
+        _prioritySpeakers = new(); // roomName -> userId
 
     /// <summary>Returns a lightweight participant list for the given room.</summary>
     public static IEnumerable<object> GetRoomParticipants(string roomName)
@@ -46,6 +49,8 @@ public class PresenceHub(AppDbContext db) : Hub
         var participants = _rooms.GetValueOrDefault(roomName, new())
             .Select(kv => new { connectionId = kv.Key, displayName = kv.Value.DisplayName, userId = kv.Value.UserId });
         await Clients.Caller.SendAsync("RoomJoined", roomName, participants);
+        if (_prioritySpeakers.TryGetValue(roomName, out var ps))
+            await Clients.Caller.SendAsync("PrioritySpeakerChanged", ps);
 
         var allRooms = await db.Rooms.OrderBy(r => r.Name).Select(r => new { r.Id, r.Name }).ToListAsync();
         var payload = BuildRoomListPayload(allRooms.Select(r => (r.Id, r.Name)));
@@ -106,6 +111,48 @@ public class PresenceHub(AppDbContext db) : Hub
         await Clients.Group(roomName).SendAsync(eventName, Context.ConnectionId);
     }
 
+    public async Task AssignPrioritySpeaker(string roomName, string targetUserId)
+    {
+        var callerUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                           ?? Context.User?.FindFirst("sub")?.Value;
+        var room = await db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
+        if (room == null || room.CreatedByUserId?.ToString() != callerUserId) return;
+
+        _prioritySpeakers[roomName] = targetUserId;
+
+        if (_rooms.TryGetValue(roomName, out var participants))
+        {
+            foreach (var key in participants.Keys.ToList())
+            {
+                var p = participants[key];
+                participants[key] = p with { IsPrioritySpeaker = p.UserId == targetUserId };
+            }
+        }
+
+        await Clients.Group(roomName).SendAsync("PrioritySpeakerChanged", targetUserId);
+    }
+
+    public async Task RemovePrioritySpeaker(string roomName)
+    {
+        var callerUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                           ?? Context.User?.FindFirst("sub")?.Value;
+        var room = await db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
+        if (room == null || room.CreatedByUserId?.ToString() != callerUserId) return;
+
+        _prioritySpeakers.TryRemove(roomName, out _);
+
+        if (_rooms.TryGetValue(roomName, out var participants))
+        {
+            foreach (var key in participants.Keys.ToList())
+            {
+                var p = participants[key];
+                participants[key] = p with { IsPrioritySpeaker = false };
+            }
+        }
+
+        await Clients.Group(roomName).SendAsync("PrioritySpeakerChanged", (string?)null);
+    }
+
     // ── Private helpers ─────────────────────────────────────────────────────
 
     private static string? GetRoomForConnection(string connectionId) =>
@@ -118,6 +165,7 @@ public class PresenceHub(AppDbContext db) : Hub
     private async Task DeleteRoomAndBroadcast(string roomName)
     {
         _rooms.TryRemove(roomName, out _);
+        _prioritySpeakers.TryRemove(roomName, out _);
 
         var dbRoom = await db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
         if (dbRoom != null)

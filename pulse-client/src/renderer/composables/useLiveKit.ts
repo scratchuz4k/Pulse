@@ -14,6 +14,7 @@ const inputDevices = ref<AudioDevice[]>([])
 const outputDevices = ref<AudioDevice[]>([])
 const activeInputId = ref<string>('')
 const activeOutputId = ref<string>('')
+const prioritySpeakerId = ref<string | null>(null)
 
 async function refreshDevices(unlockLabels: boolean = true): Promise<void> {
   // getUserMedia must be called from this context to unlock device labels
@@ -46,6 +47,26 @@ async function refreshDevices(unlockLabels: boolean = true): Promise<void> {
 
 export function useLiveKit() {
 
+  function applyDucking(activeSpeakerIdentities: string[]): void {
+    if (!prioritySpeakerId.value) return
+    const psIsSpeaking = activeSpeakerIdentities.includes(prioritySpeakerId.value)
+    document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => {
+      const identity = el.id.replace('livekit-audio-', '')
+      el.volume = psIsSpeaking && identity !== prioritySpeakerId.value ? 0.15 : 1.0
+    })
+  }
+
+  function setPrioritySpeaker(userId: string | null): void {
+    prioritySpeakerId.value = userId
+    if (!userId) {
+      document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => {
+        el.volume = 1.0
+      })
+    } else {
+      applyDucking(activeSpeakers.value)
+    }
+  }
+
   async function connect(liveKitToken: string, liveKitHost: string, desiredMicEnabled: boolean = true): Promise<void> {
     // Clean up any existing session first
     if (livekitRoom) {
@@ -77,6 +98,7 @@ export function useLiveKit() {
 
     room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
       activeSpeakers.value = speakers.map((s) => s.identity)
+      applyDucking(activeSpeakers.value)
     })
 
     room.on(RoomEvent.ParticipantDisconnected, (participant) => {
@@ -148,5 +170,6 @@ export function useLiveKit() {
     connect, disconnect, toggleMic, switchInput, switchOutput,
     isConnected, isMicEnabled, activeSpeakers,
     inputDevices, outputDevices, activeInputId, activeOutputId,
+    prioritySpeakerId, setPrioritySpeaker,
   }
 }
