@@ -8,6 +8,9 @@ interface PulseApi {
   getPttKey: () => Promise<string | null>
   getPttMode: () => Promise<boolean>
   setPttMode: (enabled: boolean) => Promise<void>
+  onPttKeyDown: (cb: () => void) => void
+  onPttKeyUp: (cb: () => void) => void
+  removePttListeners: () => void
 }
 
 declare global {

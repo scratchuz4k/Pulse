@@ -3,11 +3,40 @@ import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
 // Allow audio autoplay and mic access without user gesture
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 import { join } from 'path'
+import { uIOhook, UiohookKey } from 'uiohook-napi'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
 import { machineId } from 'node-machine-id'
 let store: InstanceType<typeof Store>
 let mainWindow: BrowserWindow | null = null
+
+// Maps Electron accelerator strings to uiohook keycodes (non-exhaustive — covers common PTT keys)
+const ACCELERATOR_TO_UIOHOOK: Record<string, number> = {
+  Space: UiohookKey.Space,
+  Return: UiohookKey.Enter,
+  Backspace: UiohookKey.Backspace,
+  Tab: UiohookKey.Tab,
+  Escape: UiohookKey.Escape,
+  Up: UiohookKey.ArrowUp,
+  Down: UiohookKey.ArrowDown,
+  Left: UiohookKey.ArrowLeft,
+  Right: UiohookKey.ArrowRight,
+  F1: UiohookKey.F1, F2: UiohookKey.F2, F3: UiohookKey.F3, F4: UiohookKey.F4,
+  F5: UiohookKey.F5, F6: UiohookKey.F6, F7: UiohookKey.F7, F8: UiohookKey.F8,
+  F9: UiohookKey.F9, F10: UiohookKey.F10, F11: UiohookKey.F11, F12: UiohookKey.F12,
+}
+// Single letter/digit keys
+for (let i = 0; i < 26; i++) {
+  const letter = String.fromCharCode(65 + i) // A-Z
+  ACCELERATOR_TO_UIOHOOK[letter] = (UiohookKey as Record<string, number>)[letter] ?? 0
+}
+
+function getPttKeycode(): number | null {
+  const accelerator = store.get('ptt.key') as string | undefined
+  if (!accelerator) return null
+  const code = ACCELERATOR_TO_UIOHOOK[accelerator]
+  return code || null
+}
 
 async function createStore(): Promise<void> {
   const key = await machineId()
@@ -83,13 +112,29 @@ app.whenReady().then(async () => {
 
   createWindow()
 
-  // Blur auto-release fallback: if a keyup is missed, release PTT on window blur
+  // Global PTT hook — WH_KEYBOARD_LL on Windows: passively listens, always calls
+  // CallNextHookEx so the key is NOT consumed and still works in other applications.
+  uIOhook.on('keydown', (e) => {
+    const code = getPttKeycode()
+    if (code && e.keycode === code) {
+      mainWindow?.webContents.send('ptt:keydown')
+    }
+  })
+  uIOhook.on('keyup', (e) => {
+    const code = getPttKeycode()
+    if (code && e.keycode === code) {
+      mainWindow?.webContents.send('ptt:keyup')
+    }
+  })
+  uIOhook.start()
+
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
 app.on('window-all-closed', () => {
+  uIOhook.stop()
   if (process.platform !== 'darwin') {
     app.quit()
   }

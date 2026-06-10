@@ -8,4 +8,10 @@ contextBridge.exposeInMainWorld('pulseApi', {
   getPttKey: () => ipcRenderer.invoke('ptt:get-key') as Promise<string | null>,
   getPttMode: () => ipcRenderer.invoke('ptt:get-mode') as Promise<boolean>,
   setPttMode: (enabled: boolean) => ipcRenderer.invoke('ptt:set-mode', enabled),
+  onPttKeyDown: (cb: () => void) => ipcRenderer.on('ptt:keydown', cb),
+  onPttKeyUp: (cb: () => void) => ipcRenderer.on('ptt:keyup', cb),
+  removePttListeners: () => {
+    ipcRenderer.removeAllListeners('ptt:keydown')
+    ipcRenderer.removeAllListeners('ptt:keyup')
+  },
 })
