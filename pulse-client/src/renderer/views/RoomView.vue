@@ -439,8 +439,14 @@ async function handleJoin(): Promise<void> {
     const { liveKitToken, liveKitHost } = await fetchLiveKitToken(roomNameInput.value.trim())
     await connect(SERVER_URL)
     await joinRoom(roomNameInput.value.trim())
-    await livekitConnect(liveKitToken, liveKitHost)
-    if (isPttMode.value) await setMicEnabled(false)
+    const desiredMic = !isPttMode.value && !isDeafened.value
+    await livekitConnect(liveKitToken, liveKitHost, desiredMic)
+    if (isDeafened.value) {
+      document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => { el.volume = 0 })
+      await broadcastMuteChanged(true)
+    } else if (!desiredMic) {
+      await broadcastMuteChanged(true)
+    }
     roomNameInput.value = ''
     activeNav.value = 'voice'
   } catch (err: unknown) {
