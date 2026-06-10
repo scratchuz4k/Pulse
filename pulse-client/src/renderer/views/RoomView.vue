@@ -179,6 +179,13 @@
                   <span class="type-chip voice-chip">🎙 VOICE</span>
                   <span class="card-name">{{ room.name }}</span>
                 </div>
+                <div class="card-row card-people">
+                  <div class="av-stack">
+                    <span v-for="p in room.participants.slice(0, 5)" :key="p.userId" class="av-sm" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
+                    <span v-if="room.participants.length > 5" class="av-sm av-more">+{{ room.participants.length - 5 }}</span>
+                  </div>
+                  <span class="card-meta">{{ room.participants.length }} in room</span>
+                </div>
                 <div class="card-row">
                   <button class="jump-btn" :disabled="joining" @click.stop="handleJoinRoom(room.name)">Join ▸</button>
                 </div>
