@@ -66,7 +66,6 @@
                   <span v-if="roomStore.participants.length > 5" class="av-sm av-more">+{{ roomStore.participants.length - 5 }}</span>
                 </div>
                 <span class="card-meta">{{ roomStore.participants.length }} in room</span>
-                <span v-if="activeSpeakers.length" class="card-speaking">· {{ speakerName }} speaking</span>
               </div>
               <div class="heat-bar">
                 <div class="heat-fill" :style="{ width: Math.min(100, roomStore.participants.length * 12) + '%' }" />
@@ -143,7 +142,6 @@
                   <span v-if="roomStore.participants.length > 5" class="av-sm av-more">+{{ roomStore.participants.length - 5 }}</span>
                 </div>
                 <span class="card-meta">{{ roomStore.participants.length }} / 12</span>
-                <span v-if="activeSpeakers.length" class="card-speaking">· {{ speakerName }} speaking</span>
               </div>
               <div class="heat-bar">
                 <div class="heat-fill" :style="{ width: Math.min(100, roomStore.participants.length * 12) + '%' }" />
@@ -287,7 +285,7 @@
         </div>
         <div class="vb-info">
           <span class="vb-room-name">{{ roomStore.currentRoomName }} <span class="vb-count">{{ roomStore.participants.length }}/12</span></span>
-          <span class="vb-speaking">{{ activeSpeakers.length ? speakerName + ' speaking' : 'Voice connected' }}</span>
+          <span class="vb-speaking">Voice connected</span>
         </div>
       </div>
 
@@ -412,11 +410,6 @@ function initials(name: string): string {
   return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase()
 }
 
-const speakerName = computed(() => {
-  if (!activeSpeakers.value.length) return ''
-  const sp = roomStore.participants.find(p => p.userId === activeSpeakers.value[0])
-  return sp?.displayName ?? ''
-})
 
 async function handleJoin(): Promise<void> {
   if (!roomNameInput.value.trim()) return
