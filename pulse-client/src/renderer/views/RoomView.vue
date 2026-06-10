@@ -586,8 +586,8 @@ void isConnected;
 }
 
 .side-tabs {
-  width: 220px;
-  flex: 0 0 220px;
+  width: 320px;
+  flex: 0 0 320px;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--c-border);

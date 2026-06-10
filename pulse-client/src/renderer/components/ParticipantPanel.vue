@@ -148,8 +148,8 @@ function initials(name: string): string {
 
 <style scoped>
 .squad-panel {
-  width: 220px;
-  flex: 0 0 220px;
+  width: 320px;
+  flex: 0 0 320px;
   border-left: 1px solid var(--c-border);
   background: var(--c-side);
   display: flex;
