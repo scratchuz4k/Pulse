@@ -6,10 +6,12 @@ export interface AudioDevice {
   label: string
 }
 
-let livekitRoom: Room | null = null
+let mainRoom: Room | null = null
+const whisperRooms = new Map<string, Room>()
 const isConnected = ref(false)
 const isMicEnabled = ref(false)
 const activeSpeakers = ref<string[]>([])
+const whisperActiveSpeakers = ref<Map<string, string[]>>(new Map())
 const inputDevices = ref<AudioDevice[]>([])
 const outputDevices = ref<AudioDevice[]>([])
 const activeInputId = ref<string>('')
@@ -69,9 +71,9 @@ export function useLiveKit() {
 
   async function connect(liveKitToken: string, liveKitHost: string, desiredMicEnabled: boolean = true): Promise<void> {
     // Clean up any existing session first
-    if (livekitRoom) {
-      await livekitRoom.disconnect()
-      livekitRoom = null
+    if (mainRoom) {
+      await mainRoom.disconnect()
+      mainRoom = null
     }
 
     const room = new Room({
@@ -114,7 +116,7 @@ export function useLiveKit() {
     await room.connect(liveKitHost, liveKitToken)
     await room.startAudio()
     console.log('[LiveKit] connected, audio unlocked, local identity:', room.localParticipant.identity)
-    livekitRoom = room
+    mainRoom = room
     isConnected.value = true
 
     try {
@@ -135,24 +137,24 @@ export function useLiveKit() {
 
   async function switchInput(deviceId: string): Promise<void> {
     activeInputId.value = deviceId
-    if (livekitRoom) await livekitRoom.switchActiveDevice('audioinput', deviceId)
+    if (mainRoom) await mainRoom.switchActiveDevice('audioinput', deviceId)
   }
 
   async function switchOutput(deviceId: string): Promise<void> {
     activeOutputId.value = deviceId
-    // Apply to all existing remote audio elements
-    document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach(el => {
+    // Apply to all existing remote audio elements — both main and whisper
+    document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"], audio[id^="whisper-audio-"]').forEach(el => {
       if (typeof el.setSinkId === 'function') {
         el.setSinkId(deviceId).catch((e: unknown) => console.error('[LiveKit] setSinkId failed:', e))
       }
     })
-    if (livekitRoom) await livekitRoom.switchActiveDevice('audiooutput', deviceId)
+    if (mainRoom) await mainRoom.switchActiveDevice('audiooutput', deviceId)
   }
 
   async function disconnect(): Promise<void> {
-    if (livekitRoom) {
-      await livekitRoom.disconnect()
-      livekitRoom = null
+    if (mainRoom) {
+      await mainRoom.disconnect()
+      mainRoom = null
     }
     isConnected.value = false
     isMicEnabled.value = false
@@ -160,10 +162,70 @@ export function useLiveKit() {
   }
 
   async function toggleMic(): Promise<void> {
-    if (!livekitRoom) return
+    if (!mainRoom) return
     const next = !isMicEnabled.value
-    await livekitRoom.localParticipant.setMicrophoneEnabled(next)
+    await mainRoom.localParticipant.setMicrophoneEnabled(next)
     isMicEnabled.value = next
+  }
+
+  async function connectWhisper(groupId: string, token: string, host: string): Promise<void> {
+    if (whisperRooms.has(groupId)) return // already connected — idempotent
+    const room = new Room({ adaptiveStream: true, dynacast: true })
+
+    room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
+      if (track.kind === Track.Kind.Audio) {
+        const el = track.attach()
+        el.id = `whisper-audio-${groupId}-${participant.identity}` // CRITICAL: distinct prefix
+        if (activeOutputId.value && typeof (el as HTMLAudioElement).setSinkId === 'function') {
+          (el as HTMLAudioElement).setSinkId(activeOutputId.value).catch(() => {})
+        }
+        document.body.appendChild(el)
+      }
+    })
+
+    room.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => {
+      track.detach().forEach(el => el.remove())
+      document.getElementById(`whisper-audio-${groupId}-${participant.identity}`)?.remove()
+    })
+
+    room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+      document.getElementById(`whisper-audio-${groupId}-${participant.identity}`)?.remove()
+    })
+
+    room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+      const identities = speakers.map(s => s.identity)
+      const updated = new Map(whisperActiveSpeakers.value)
+      updated.set(groupId, identities)
+      whisperActiveSpeakers.value = updated
+    })
+
+    room.on(RoomEvent.Disconnected, () => {
+      whisperRooms.delete(groupId)
+      const updated = new Map(whisperActiveSpeakers.value)
+      updated.delete(groupId)
+      whisperActiveSpeakers.value = updated
+      document.querySelectorAll<HTMLAudioElement>(`audio[id^="whisper-audio-${groupId}-"]`).forEach(el => el.remove())
+    })
+
+    await room.connect(host, token)
+    await room.startAudio()
+    whisperRooms.set(groupId, room)
+    console.log(`[LiveKit] whisper room connected: ${groupId}`)
+  }
+
+  async function disconnectWhisper(groupId: string): Promise<void> {
+    const room = whisperRooms.get(groupId)
+    if (!room) return
+    await room.disconnect()
+    whisperRooms.delete(groupId)
+    const updated = new Map(whisperActiveSpeakers.value)
+    updated.delete(groupId)
+    whisperActiveSpeakers.value = updated
+    document.querySelectorAll<HTMLAudioElement>(`audio[id^="whisper-audio-${groupId}-"]`).forEach(el => el.remove())
+  }
+
+  function getWhisperRoom(groupId: string): Room | undefined {
+    return whisperRooms.get(groupId)
   }
 
   return {
@@ -171,5 +233,7 @@ export function useLiveKit() {
     isConnected, isMicEnabled, activeSpeakers,
     inputDevices, outputDevices, activeInputId, activeOutputId,
     prioritySpeakerId, setPrioritySpeaker,
+    connectWhisper, disconnectWhisper, getWhisperRoom,
+    whisperActiveSpeakers,
   }
 }
