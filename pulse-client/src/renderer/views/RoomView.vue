@@ -143,11 +143,27 @@
           </div>
         </div>
 
-        <!-- Participant panel -->
-        <ParticipantPanel
-          :active-speakers="activeSpeakers"
-          @toggle-priority-speaker="togglePrioritySpeaker"
-        />
+        <!-- Sidebar with tab switcher -->
+        <div class="side-tabs">
+          <div class="side-tab-bar">
+            <button
+              class="side-tab-btn"
+              :class="{ active: sideTab === 'participants' }"
+              @click="sideTab = 'participants'"
+            >Participants</button>
+            <button
+              class="side-tab-btn"
+              :class="{ active: sideTab === 'whisper' }"
+              @click="sideTab = 'whisper'"
+            >Whisper</button>
+          </div>
+          <ParticipantPanel
+            v-if="sideTab === 'participants'"
+            :active-speakers="activeSpeakers"
+            @toggle-priority-speaker="togglePrioritySpeaker"
+          />
+          <WhisperPanel v-else />
+        </div>
       </div>
     </div>
   </div>
@@ -156,6 +172,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
 import ParticipantPanel from "../components/ParticipantPanel.vue";
+import WhisperPanel from "../components/WhisperPanel.vue";
 import { useRoomStore } from "../stores/room";
 import { useAuth } from "../composables/useAuth";
 import { usePresence } from "../composables/usePresence";
@@ -182,6 +199,7 @@ const { isPttMode, pttBinding } = usePtt();
 
 const roomNameInput = ref("");
 const joining = ref(false);
+const sideTab = ref<'participants' | 'whisper'>('participants');
 const joinError = ref("");
 const showJoinForm = ref(false);
 
@@ -567,4 +585,50 @@ void isConnected;
   font-size: 14px;
 }
 
+.side-tabs {
+  width: 220px;
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--c-border);
+  background: var(--c-side);
+  overflow: hidden;
+}
+.side-tab-bar {
+  display: flex;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--c-border);
+}
+.side-tab-btn {
+  flex: 1 1 50%;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: var(--c-ink-4);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.1s, border-color 0.1s;
+}
+.side-tab-btn.active {
+  color: var(--c-ink);
+  border-bottom-color: var(--accent);
+}
+.side-tab-btn:hover:not(.active) {
+  color: var(--c-ink-2);
+}
+.side-tabs :deep(.squad-panel) {
+  border-left: none;
+  width: 100%;
+  flex: 1 1 auto;
+}
+.side-tabs :deep(.whisper-panel) {
+  border-left: none;
+  width: 100%;
+  flex: 1 1 auto;
+}
 </style>

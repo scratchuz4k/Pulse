@@ -11,6 +11,15 @@ interface PulseApi {
   onPttKeyDown: (cb: () => void) => void
   onPttKeyUp: (cb: () => void) => void
   removePttListeners: () => void
+  setWhisperPttKey: (groupId: string, accelerator: string | null) => Promise<boolean>
+  getWhisperPttKey: (groupId: string) => Promise<string | null>
+  setWhisperTransmitMode: (groupId: string, mode: string) => Promise<boolean>
+  getWhisperTransmitMode: (groupId: string) => Promise<string>
+  setWhisperSuppressMain: (groupId: string, suppress: boolean) => Promise<boolean>
+  getWhisperSuppressMain: (groupId: string) => Promise<boolean>
+  onWhisperPttKeyDown: (cb: (groupId: string) => void) => void
+  onWhisperPttKeyUp: (cb: (groupId: string) => void) => void
+  removeWhisperPttListeners: () => void
 }
 
 declare global {

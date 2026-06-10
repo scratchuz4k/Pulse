@@ -228,12 +228,18 @@ export function useLiveKit() {
     return whisperRooms.get(groupId)
   }
 
+  async function setMainMicEnabled(enabled: boolean): Promise<void> {
+    if (!mainRoom) return
+    await mainRoom.localParticipant.setMicrophoneEnabled(enabled)
+    isMicEnabled.value = enabled
+  }
+
   return {
     connect, disconnect, toggleMic, switchInput, switchOutput,
     isConnected, isMicEnabled, activeSpeakers,
     inputDevices, outputDevices, activeInputId, activeOutputId,
     prioritySpeakerId, setPrioritySpeaker,
-    connectWhisper, disconnectWhisper, getWhisperRoom,
+    connectWhisper, disconnectWhisper, getWhisperRoom, setMainMicEnabled,
     whisperActiveSpeakers,
   }
 }
