@@ -25,7 +25,7 @@ Each phase delivers a working, runnable slice of the app. By end of Phase 1 you 
 **Goal:** A complete, usable voice room — mic control, deafen, presence list, speaking indicators, room creation.
 **Mode:** mvp
 **Requirements:** VOICE-04, VOICE-05, VOICE-06, ROOM-01, ROOM-02, ROOM-03
-**Plans:** 5 plans
+**Plans:** 9 plans (4 gap closure)
 **Success Criteria:**
 1. User can create a named voice room; it appears in the room list for all connected clients
 2. Push-to-talk mode works — audio only transmits while the configured key is held
@@ -39,7 +39,11 @@ Plans:
 - [x] 02-02-PLAN.md — Mute broadcast: PresenceHub MuteChanged, store isMuted, ParticipantMuted/Unuted listeners, 🔇 icon
 - [x] 02-03-PLAN.md — Room list wiring: roomStore.rooms, RoomListUpdated listener, voice feed renders all rooms, one-click join
 - [x] 02-04-PLAN.md — Push-to-talk: globalShortcut IPC, preload bridge, usePtt composable, Settings key-capture UI
-- [ ] 02-05-PLAN.md — Deafen fix + speaking indicators: prevMicEnabled save/restore, ROOM-02 userId matching verified
+- [x] 02-05-PLAN.md — Deafen fix + speaking indicators: prevMicEnabled save/restore, ROOM-02 userId matching verified
+- [ ] 02-06-PLAN.md — [gap] PTT global hotkey via uiohook-napi: real keydown+keyup, non-exclusive capture (UAT test 1)
+- [ ] 02-07-PLAN.md — [gap] Persist PTT vs Voice-Activity mode in electron-store (UAT test 2)
+- [ ] 02-08-PLAN.md — [gap] Room cards show participants + auto-delete empty rooms (UAT test 5)
+- [ ] 02-09-PLAN.md — [gap] Preserve mute/deafen on join + remove redundant bottom-bar ring (UAT tests 5, 6)
 
 ---
 
