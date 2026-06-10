@@ -367,7 +367,7 @@ const {
   isConnected, isMicEnabled, activeSpeakers,
   inputDevices, outputDevices, activeInputId, activeOutputId,
 } = useLiveKit()
-const { isPttMode, pttBinding, isCapturing, startCapture, handleCaptureKeydown, setReleaseCallback } = usePtt()
+const { isPttMode, pttBinding, isCapturing, startCapture, handleCaptureKeydown } = usePtt()
 
 const activeNav = ref<'hub' | 'text' | 'voice' | 'settings'>('voice')
 const roomNameInput = ref('')
@@ -390,8 +390,6 @@ onMounted(() => {
   window.pulseApi.removePttListeners()
   window.pulseApi.onPttKeyDown(() => { if (isPttMode.value) setMicEnabled(true) })
   window.pulseApi.onPttKeyUp(() => { if (isPttMode.value) setMicEnabled(false) })
-  // Wire focused-window keyup (globalShortcut doesn't send keyup)
-  setReleaseCallback(() => { if (isPttMode.value) setMicEnabled(false) })
 })
 
 onUnmounted(() => {
