@@ -4,13 +4,10 @@ interface PulseApi {
   storeGet: (key: string) => Promise<string | undefined>
   storeSet: (key: string, value: string) => Promise<void>
   storeDel: (key: string) => Promise<void>
-  onPttKeyDown: (cb: () => void) => void
-  onPttKeyUp: (cb: () => void) => void
   setPttKey: (accelerator: string) => Promise<boolean>
   getPttKey: () => Promise<string | null>
   getPttMode: () => Promise<boolean>
   setPttMode: (enabled: boolean) => Promise<void>
-  removePttListeners: () => void
 }
 
 declare global {

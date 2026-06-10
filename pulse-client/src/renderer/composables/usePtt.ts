@@ -38,11 +38,7 @@ export function usePtt() {
     watch(isPttMode, (v) => { window.pulseApi.setPttMode(v) })
   })
 
-  onUnmounted(() => {
-    window.pulseApi.removePttListeners()
-  })
-
-  function startCapture(): void {
+function startCapture(): void {
     isCapturing.value = true
   }
 

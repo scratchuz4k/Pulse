@@ -356,7 +356,7 @@ import { useRoomStore } from '../stores/room'
 import { useAuth } from '../composables/useAuth'
 import { usePresence } from '../composables/usePresence'
 import { useLiveKit } from '../composables/useLiveKit'
-import { usePtt } from '../composables/usePtt'
+import { usePtt, codeToAccelerator } from '../composables/usePtt'
 
 const authStore = useAuthStore()
 const roomStore = useRoomStore()
@@ -387,14 +387,28 @@ async function setMicEnabled(v: boolean): Promise<void> {
   }
 }
 
+function handlePttKeydown(e: KeyboardEvent): void {
+  if (!isPttMode.value || !pttBinding.value || e.repeat) return
+  if (codeToAccelerator(e.code) === pttBinding.value.accelerator) setMicEnabled(true)
+}
+function handlePttKeyup(e: KeyboardEvent): void {
+  if (!isPttMode.value || !pttBinding.value) return
+  if (codeToAccelerator(e.code) === pttBinding.value.accelerator) setMicEnabled(false)
+}
+function handlePttBlur(): void {
+  if (isPttMode.value) setMicEnabled(false)
+}
+
 onMounted(() => {
-  window.pulseApi.removePttListeners()
-  window.pulseApi.onPttKeyDown(() => { if (isPttMode.value) setMicEnabled(true) })
-  window.pulseApi.onPttKeyUp(() => { if (isPttMode.value) setMicEnabled(false) })
+  window.addEventListener('keydown', handlePttKeydown)
+  window.addEventListener('keyup', handlePttKeyup)
+  window.addEventListener('blur', handlePttBlur)
 })
 
 onUnmounted(() => {
-  window.pulseApi.removePttListeners()
+  window.removeEventListener('keydown', handlePttKeydown)
+  window.removeEventListener('keyup', handlePttKeyup)
+  window.removeEventListener('blur', handlePttBlur)
 })
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000'
