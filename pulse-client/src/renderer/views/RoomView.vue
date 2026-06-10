@@ -292,7 +292,7 @@
       </div>
 
       <div class="vb-avatars">
-        <span v-for="p in roomStore.participants.slice(0, 4)" :key="p.connectionId" class="vb-av" :class="{ speaking: activeSpeakers.includes(p.userId), muted: p.isMuted }" :style="{ background: avatarColor(p.displayName) }" :title="p.displayName">{{ initials(p.displayName) }}</span>
+        <span v-for="p in roomStore.participants.slice(0, 4)" :key="p.connectionId" class="vb-av" :class="{ muted: p.isMuted }" :style="{ background: avatarColor(p.displayName) }" :title="p.displayName">{{ initials(p.displayName) }}</span>
         <span v-if="roomStore.participants.length > 4" class="vb-av vb-av-more">+{{ roomStore.participants.length - 4 }}</span>
       </div>
 
@@ -923,7 +923,6 @@ void connectionState
   transition: box-shadow .15s;
 }
 .vb-av:first-child { margin-left: 0; }
-.vb-av.speaking { box-shadow: 0 0 0 2px var(--voice); }
 .vb-av.muted { box-shadow: 0 0 0 2px var(--live); }
 .vb-av-more { background: var(--c-side-2); color: var(--c-ink-4); }
 
