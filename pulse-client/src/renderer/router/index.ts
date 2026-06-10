@@ -1,6 +1,10 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import LoginView from '../views/LoginView.vue'
+import DashBoard from '../views/DashBoard.vue'
+import ServerTemplate from '../layouts/ServerTemplate.vue'
+import HubView from '../views/HubView.vue'
+import TextView from '../views/TextView.vue'
 import RoomView from '../views/RoomView.vue'
 
 export const router = createRouter({
@@ -16,10 +20,21 @@ export const router = createRouter({
       component: LoginView
     },
     {
-      path: '/room',
-      name: 'room',
-      component: RoomView,
+      path: '/dashboard',
+      name: 'dashboard',
+      component: DashBoard,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/server',
+      component: ServerTemplate,
+      meta: { requiresAuth: true },
+      redirect: '/server/hub',
+      children: [
+        { path: 'hub', name: 'hub', component: HubView },
+        { path: 'text', name: 'text', component: TextView },
+        { path: 'voice', name: 'voice', component: RoomView }
+      ]
     }
   ]
 })

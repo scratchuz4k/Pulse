@@ -3,36 +3,36 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: 2026-06-09T20:10:00.000Z
+last_updated: 2026-06-10T16:00:00.000Z
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 2
   total_plans: 3
-  completed_plans: 4
-  percent: 0
-stopped_at: Phase 02, Plan 05 complete — deafen fix (prevMicEnabled save/restore) + speaking indicator userId verification
+  completed_plans: 3
+  percent: 33
+stopped_at: Phase 03 complete — priority speaker server state, audio ducking, admin UI (all 3 plans closed out manually from commit 35a07b0)
 ---
 
 # Pulse — Project State
 
 ## Current Phase
 
-**Phase 2: Full Room Experience** — In progress (3 plans complete)
+**Phase 4: Whisper Side-Channel** — Not started
 
 ## Phase Status
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 1 | Two Clients Talking | 📋 Planned |
-| 2 | Full Room Experience | 🔄 In progress |
-| 3 | Priority Speaker | 🔲 Not started |
+| 1 | Two Clients Talking | ✅ Complete |
+| 2 | Full Room Experience | ✅ Complete |
+| 3 | Priority Speaker | ✅ Complete |
 | 4 | Whisper Side-Channel | 🔲 Not started |
 | 5 | Text Channels | 🔲 Not started |
 | 6 | Pulse Activity Feed | 🔲 Not started |
 
 ## Last Action
 
-Phase 02 Plan 05 executed — 2026-06-09 (Deafen fix: prevMicEnabled ref saves mic state before deafen, restores on undeafen; speaking indicator verification: all activeSpeakers checks confirmed to use p.userId matching LiveKit identity; ROOM-02 verified)
+Phase 03 all 3 plans closed out manually — 2026-06-10 (priority speaker: server state + broadcast, audio ducking at 0.15, admin UI with ★ badge; summaries written from commit 35a07b0)
 
 ## Decisions
 

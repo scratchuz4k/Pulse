@@ -2,10 +2,12 @@ import * as signalR from '@microsoft/signalr'
 import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRoomStore } from '../stores/room'
+import { useLiveKit } from './useLiveKit'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 let hubConnection: signalR.HubConnection | null = null
+let lastServerUrl: string | null = null
 const connectionState = ref<ConnectionState>('disconnected')
 
 export function usePresence() {
@@ -13,11 +15,15 @@ export function usePresence() {
   const roomStore = useRoomStore()
 
   async function connect(serverUrl: string): Promise<void> {
+    if (hubConnection && hubConnection.state === signalR.HubConnectionState.Connected) {
+      return
+    }
     if (hubConnection) {
       await disconnect()
     }
 
     connectionState.value = 'connecting'
+    lastServerUrl = serverUrl
 
     hubConnection = new signalR.HubConnectionBuilder()
       .withUrl(`${serverUrl}/hubs/presence`, {
@@ -61,8 +67,14 @@ export function usePresence() {
       roomStore.setParticipantDeafened(connectionId, false)
     })
 
-    hubConnection.on('RoomListUpdated', (list: { id: number; name: string }[]) => {
+    hubConnection.on('RoomListUpdated', (list: { id: number; name: string; createdByUserId?: string; participants: { displayName: string; userId: string }[] }[]) => {
       roomStore.setRoomList(list)
+    })
+
+    hubConnection.on('PrioritySpeakerChanged', (userId: string | null) => {
+      const { setPrioritySpeaker } = useLiveKit()
+      setPrioritySpeaker(userId)
+      roomStore.setPrioritySpeaker(userId)
     })
 
     hubConnection.onreconnecting(() => {
@@ -71,6 +83,14 @@ export function usePresence() {
 
     hubConnection.onreconnected(() => {
       connectionState.value = 'connected'
+      if (lastServerUrl) {
+        fetch(`${lastServerUrl}/rooms`, {
+          headers: { Authorization: `Bearer ${authStore.accessToken}` }
+        })
+          .then(r => r.json())
+          .then((list: { id: number; name: string; participants: { displayName: string; userId: string }[] }[]) => roomStore.setRoomList(list))
+          .catch(e => console.error('[usePresence] reconnect room refresh failed:', e))
+      }
     })
 
     hubConnection.onclose(() => {
@@ -84,7 +104,7 @@ export function usePresence() {
         headers: { Authorization: `Bearer ${authStore.accessToken}` }
       })
         .then(r => r.json())
-        .then((list: { id: number; name: string }[]) => roomStore.setRoomList(list))
+        .then((list: { id: number; name: string; participants: { displayName: string; userId: string }[] }[]) => roomStore.setRoomList(list))
         .catch(e => console.error('[usePresence] failed to load rooms:', e))
     } catch (err) {
       console.error('SignalR connection error:', err)
@@ -138,5 +158,23 @@ export function usePresence() {
     }
   }
 
-  return { connect, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, broadcastDeafenChanged, createRoom }
+  async function assignPrioritySpeaker(roomName: string, userId: string): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('AssignPrioritySpeaker', roomName, userId)
+  }
+
+  async function removePrioritySpeaker(roomName: string): Promise<void> {
+    if (!hubConnection) return
+    await hubConnection.invoke('RemovePrioritySpeaker', roomName)
+  }
+
+  async function fetchRooms(serverUrl: string): Promise<void> {
+    const res = await fetch(`${serverUrl}/rooms`, {
+      headers: { Authorization: `Bearer ${authStore.accessToken}` }
+    })
+    const list = await res.json()
+    roomStore.setRoomList(list)
+  }
+
+  return { connect, fetchRooms, joinRoom, leaveRoom, disconnect, connectionState, broadcastMuteChanged, broadcastDeafenChanged, createRoom, assignPrioritySpeaker, removePrioritySpeaker }
 }

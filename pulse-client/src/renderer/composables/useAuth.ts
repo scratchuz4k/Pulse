@@ -12,7 +12,7 @@ function isTokenExpired(token: string): boolean {
   }
 }
 
-function parseTokenPayload(token: string): { sub?: string; name?: string } {
+function parseTokenPayload(token: string): { sub?: string; displayName?: string } {
   try {
     return JSON.parse(atob(token.split('.')[1]))
   } catch {
@@ -82,7 +82,7 @@ export function useAuth() {
     if (!access || !refresh) return
 
     const payload = parseTokenPayload(access)
-    authStore.setTokens(access, refresh, payload.sub ?? '', payload.name ?? '')
+    authStore.setTokens(access, refresh, payload.sub ?? '', payload.displayName ?? '')
 
     if (isTokenExpired(access)) {
       const ok = await refreshAccessToken()
@@ -110,7 +110,7 @@ export function useAuth() {
 
   async function _applyTokens(access: string, refresh: string): Promise<void> {
     const payload = parseTokenPayload(access)
-    authStore.setTokens(access, refresh, payload.sub ?? '', payload.name ?? '')
+    authStore.setTokens(access, refresh, payload.sub ?? '', payload.displayName ?? '')
     await window.pulseApi.storeSet('accessToken', access)
     await window.pulseApi.storeSet('refreshToken', refresh)
   }

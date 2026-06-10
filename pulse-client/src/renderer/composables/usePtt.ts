@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 
 const CODE_TO_ACCELERATOR: Record<string, string> = {
   Space: 'Space',
@@ -30,32 +30,15 @@ export function usePtt() {
   const pttBinding = ref<PttBinding | null>(null)
   const isCapturing = ref(false)
 
-  // Called by RoomView to hook focused-window keyup into the mic release logic
-  let _onRelease: (() => void) | null = null
-  function setReleaseCallback(fn: () => void): void {
-    _onRelease = fn
-  }
-
-  function handleWindowKeyUp(e: KeyboardEvent): void {
-    if (!isPttMode.value || !pttBinding.value) return
-    const acc = codeToAccelerator(e.code)
-    if (acc === pttBinding.value.accelerator && _onRelease) {
-      _onRelease()
-    }
-  }
-
   onMounted(async () => {
     const saved = await window.pulseApi.getPttKey()
     if (saved) pttBinding.value = { accelerator: saved, label: saved }
-    window.addEventListener('keyup', handleWindowKeyUp)
+    const savedMode = await window.pulseApi.getPttMode()
+    isPttMode.value = savedMode
+    watch(isPttMode, (v) => { window.pulseApi.setPttMode(v) })
   })
 
-  onUnmounted(() => {
-    window.pulseApi.removePttListeners()
-    window.removeEventListener('keyup', handleWindowKeyUp)
-  })
-
-  function startCapture(): void {
+function startCapture(): void {
     isCapturing.value = true
   }
 
@@ -70,5 +53,5 @@ export function usePtt() {
     window.pulseApi.setPttKey(accelerator)
   }
 
-  return { isPttMode, pttBinding, isCapturing, startCapture, handleCaptureKeydown, setReleaseCallback }
+  return { isPttMode, pttBinding, isCapturing, startCapture, handleCaptureKeydown }
 }

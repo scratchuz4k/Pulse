@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Guildhall — Wireframes</title>
+<link rel="stylesheet" href="wireframe.css" />
+</head>
+<body>
+<div class="page">
+
+  <div class="topbar">
+    <div class="brand">Guildhall<span class="sub">wireframes · desktop · "always know where the energy is"</span></div>
+    <div class="spacer"></div>
+    <div class="tabs">
+      <div class="tab on" data-tab="pulse">Pulse · member home</div>
+      <div class="tab" data-tab="cc">Command Center · officers</div>
+    </div>
+    <div class="toggle on" id="notesToggle"><span class="sw"></span> notes</div>
+  </div>
+
+  <!-- ════════════════ PULSE ════════════════ -->
+  <section class="concept show" id="pulse">
+    <p class="lede">Three structures for a home that surfaces <b>what's happening right now</b> instead of a static list of rooms. Pick the skeleton that feels right — we'll refine from there.</p>
+
+    <!-- P1 — Priority Feed -->
+    <div class="variant">
+      <div class="variant-head"><span class="num">1</span><h3>Priority Feed</h3><span class="tagline">one ranked column — everything is a card, sorted by heat</span></div>
+      <div class="stage">
+        <div class="win">
+          <div class="win-bar"><i></i><i></i><i></i><span class="ttl">Guildhall — The Ironclad</span></div>
+          <div class="win-body" style="--h:640px">
+            <!-- nav -->
+            <div class="nav">
+              <div class="ni brand"><span class="ic">⚔</span></div>
+              <div class="ni on"><span class="ic">⚡</span>Pulse</div>
+              <div class="ni"><span class="ic">#</span>Chat</div>
+              <div class="ni"><span class="ic">🎙</span>Voice</div>
+              <div class="ni"><span class="ic">📅</span>Events</div>
+              <div class="ni"><span class="ic">👥</span>Roster</div>
+              <div class="grow"></div>
+              <div class="ni"><span class="ic">●</span>You</div>
+            </div>
+            <!-- feed -->
+            <div class="pane fill">
+              <div class="row between center" style="padding:14px 18px 8px">
+                <div class="h-lab" style="font-size:20px">Right now</div>
+                <span class="chip energy">▾ sorted by heat</span>
+              </div>
+              <div class="col fill gap" style="padding:4px 18px 18px;overflow:hidden">
+                <!-- hottest: voice -->
+                <div class="tile hot">
+                  <div class="row between center">
+                    <div class="row center gap-s"><span class="chip live">🎙 VOICE</span><span class="h-lab">Raid Night — Mythic prog</span></div>
+                    <span class="flame">🔥🔥🔥</span>
+                  </div>
+                  <div class="row center gap"><div class="stack"><span class="av on">K</span><span class="av on">M</span><span class="av on">R</span><span class="av">T</span><span class="av">+6</span></div><span class="lab mut">9 / 12 in · filling fast</span></div>
+                  <div class="heat"><i style="width:78%"></i></div>
+                  <div class="row between center mt-s"><span class="lab mut sm">2 of your squad are here</span><span class="btn go sm">Jump in ▸</span></div>
+                </div>
+                <!-- LFG -->
+                <div class="tile">
+                  <div class="row between center"><div class="row center gap-s"><span class="chip energy">🎮 LFG</span><span class="h-lab">Ranked 5-stack</span></div><span class="flame">🔥🔥</span></div>
+                  <div class="row center gap"><div class="stack"><span class="av">A</span><span class="av">B</span><span class="av">C</span></div><span class="lab mut">need 2 · diamond+</span><span class="grow"></span><span class="btn sm">Join queue</span></div>
+                </div>
+                <!-- chat hot -->
+                <div class="tile">
+                  <div class="row between center"><div class="row center gap-s"><span class="chip">＃ strategy</span><span class="lab">62 messages in 5 min</span></div>
+                    <svg class="spark" width="92" height="26" viewBox="0 0 92 26"><path class="base" d="M2 24 H90"/><path d="M2 22 L14 18 L26 20 L38 9 L50 13 L62 6 L74 10 L90 3"/></svg>
+                  </div>
+                  <div class="bar w90 t-sm"></div><div class="bar w60 t-sm"></div>
+                </div>
+                <!-- event -->
+                <div class="tile">
+                  <div class="row between center"><div class="row center gap-s"><span class="chip">📅 EVENT</span><span class="h-lab">Guild War vs. Wolves</span></div><span class="chip energy">starts in 18m</span></div>
+                  <div class="row gap-s"><span class="btn sm">Remind me</span><span class="btn sm">RSVP · 41 going</span></div>
+                </div>
+              </div>
+            </div>
+            <!-- squad rail -->
+            <div class="pane r" style="width:208px;flex:0 0 208px">
+              <div class="pane-h">Your squad · 5 online</div>
+              <div class="col gap-s" style="padding:0 12px">
+                <div class="row center gap-s"><span class="av sm on">K</span><div><div class="lab sm">Kaela</div><div class="lab mut sm" style="color:var(--live)">🎙 Raid Night</div></div></div>
+                <div class="row center gap-s"><span class="av sm on">M</span><div><div class="lab sm">Mox</div><div class="lab mut sm" style="color:var(--live)">🎙 Raid Night</div></div></div>
+                <div class="row center gap-s"><span class="av sm on">Z</span><div><div class="lab sm">Zin</div><div class="lab mut sm">in #strategy</div></div></div>
+                <div class="row center gap-s"><span class="av sm">D</span><div><div class="lab sm">Dre</div><div class="lab mut sm">idle</div></div></div>
+              </div>
+              <div class="pane-h" style="margin-top:8px">Following</div>
+              <div class="col gap-s" style="padding:0 12px">
+                <div class="row between center"><span class="lab sm">＃ announcements</span><span class="dot hot"></span></div>
+                <div class="row between center"><span class="lab sm">＃ clips</span><span class="dotrow"><span class="dot hot"></span><span class="dot hot"></span></span></div>
+                <div class="row between center"><span class="lab sm mut">＃ off-topic</span><span class="dot"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <aside class="note">
+          <h4>How it reads</h4>
+          The whole home is a <b>self-ranking feed</b>. The single hottest thing — usually a filling voice room — sits biggest at the top with a one-tap <b>Jump in</b>. Dead channels never show.
+          <span class="tiny">Energy cue: heat flames + a fill meter on every card; order = heat.</span>
+        </aside>
+      </div>
+    </div>
+
+    <!-- P2 — Energy Board -->
+    <div class="variant">
+      <div class="variant-head"><span class="num">2</span><h3>Energy Board</h3><span class="tagline">a glanceable dashboard — see the whole guild's heat in one screen</span></div>
+      <div class="stage">
+        <div class="win">
+          <div class="win-bar"><i></i><i></i><i></i><span class="ttl">Guildhall — The Ironclad</span></div>
+          <div class="win-body" style="--h:640px">
+            <div class="nav">
+              <div class="ni brand"><span class="ic">⚔</span></div>
+              <div class="ni on"><span class="ic">⚡</span>Pulse</div>
+              <div class="ni"><span class="ic">#</span>Chat</div>
+              <div class="ni"><span class="ic">🎙</span>Voice</div>
+              <div class="ni"><span class="ic">📅</span>Events</div>
+              <div class="ni"><span class="ic">👥</span>Roster</div>
+            </div>
+            <div class="pane fill col" style="padding:16px;gap:14px;overflow:hidden">
+              <!-- live voice strip -->
+              <div class="col gap-s">
+                <div class="row between center"><span class="h-lab">🎙 Live voice — crowd shows where to go</span><span class="lab mut sm">38 in voice now</span></div>
+                <div class="row gap">
+                  <div class="tile hot grow" style="padding:10px"><div class="row between center"><span class="lab">Raid Night</span><span class="flame">🔥</span></div><div class="stack"><span class="av sm on">K</span><span class="av sm on">M</span><span class="av sm">R</span><span class="av sm">T</span><span class="av sm">+5</span></div><div class="heat"><i style="width:78%"></i></div></div>
+                  <div class="tile grow" style="padding:10px"><div class="lab">Chill Lounge</div><div class="stack"><span class="av sm">A</span><span class="av sm">B</span><span class="av sm">+2</span></div><div class="heat"><i style="width:34%"></i></div></div>
+                  <div class="tile grow" style="padding:10px"><div class="lab">Ranked Q</div><div class="stack"><span class="av sm">C</span><span class="av sm">D</span></div><div class="heat"><i style="width:22%"></i></div></div>
+                  <div class="tile grow" style="padding:10px;border-style:dashed;border-color:var(--line-soft)"><div class="lab mut">+ 4 quiet rooms</div><div class="lab mut sm">tap to expand</div></div>
+                </div>
+              </div>
+              <!-- 3-quadrant -->
+              <div class="row gap fill" style="overflow:hidden">
+                <div class="box col grow" style="overflow:hidden">
+                  <div class="h-lab mb">🔥 Heating up</div>
+                  <div class="col gap-s">
+                    <div class="row between center"><span class="lab">＃ strategy</span><svg class="spark" width="80" height="20" viewBox="0 0 80 20"><path d="M2 17 L18 12 L30 14 L44 5 L58 8 L78 2"/></svg></div>
+                    <div class="row between center"><span class="lab">＃ clips</span><svg class="spark" width="80" height="20" viewBox="0 0 80 20"><path d="M2 16 L20 14 L34 9 L50 11 L64 5 L78 7"/></svg></div>
+                    <div class="row between center"><span class="lab mut">＃ trade</span><svg class="spark" width="80" height="20" viewBox="0 0 80 20"><path class="base" d="M2 15 L26 13 L50 14 L78 12"/></svg></div>
+                  </div>
+                </div>
+                <div class="box col grow" style="overflow:hidden">
+                  <div class="h-lab mb">🎮 Forming now</div>
+                  <div class="tile" style="padding:10px"><div class="row between center"><span class="lab">Ranked 5-stack</span><span class="chip energy">need 2</span></div><div class="stack"><span class="av sm">A</span><span class="av sm">B</span><span class="av sm">C</span></div></div>
+                  <div class="tile" style="padding:10px;margin-top:8px"><div class="row between center"><span class="lab">Dungeon +15</span><span class="chip energy">need 1</span></div><div class="stack"><span class="av sm">E</span><span class="av sm">F</span><span class="av sm">G</span><span class="av sm">H</span></div></div>
+                </div>
+                <div class="box col grow" style="overflow:hidden">
+                  <div class="h-lab mb">📅 Starting soon</div>
+                  <div class="col gap-s">
+                    <div class="row center gap-s"><span class="chip energy">18m</span><span class="lab">Guild War vs Wolves</span></div>
+                    <div class="divider soft"></div>
+                    <div class="row center gap-s"><span class="chip">2h</span><span class="lab mut">Loot council</span></div>
+                    <div class="row center gap-s"><span class="chip">Fri</span><span class="lab mut">Movie night</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <aside class="note">
+          <h4>How it reads</h4>
+          One wall, four zones. Voice rooms render as <b>crowds</b> at the top; channels show live <b>sparklines</b>. You absorb the guild's whole state in a glance, no scrolling.
+          <span class="tiny">Energy cue: occupancy density + sparklines + fill meters everywhere.</span>
+        </aside>
+      </div>
+    </div>
+
+    <!-- P3 — Spotlight -->
+    <div class="variant">
+      <div class="variant-head"><span class="num">3</span><h3>Spotlight + living sidebar</h3><span class="tagline">familiar channel list — but it re-sorts itself by activity</span></div>
+      <div class="stage">
+        <div class="win">
+          <div class="win-bar"><i></i><i></i><i></i><span class="ttl">Guildhall — The Ironclad</span></div>
+          <div class="win-body" style="--h:600px">
+            <div class="nav">
+              <div class="ni brand"><span class="ic">⚔</span></div>
+              <div class="ni on"><span class="ic">⚡</span>Pulse</div>
+              <div class="ni"><span class="ic">📅</span>Events</div>
+              <div class="ni"><span class="ic">👥</span>Roster</div>
+            </div>
+            <!-- living sidebar -->
+            <div class="pane col" style="width:218px;flex:0 0 218px">
+              <div class="pane-h">Channels · auto-sorted ▾</div>
+              <div class="col gap-s" style="padding:0 10px;overflow:hidden">
+                <div class="box" style="padding:8px 10px;border-color:var(--energy)"><div class="row between center"><span class="lab">🎙 Raid Night</span><span class="lab" style="color:var(--energy)">↑9</span></div><div class="dotrow mt-s"><span class="dot hot"></span><span class="dot hot"></span><span class="dot hot"></span><span class="dot hot"></span></div></div>
+                <div class="box" style="padding:8px 10px"><div class="row between center"><span class="lab">＃ strategy</span><span class="lab" style="color:var(--energy)">↑ rising</span></div><svg class="spark mt-s" width="100%" height="16" viewBox="0 0 160 16" preserveAspectRatio="none"><path d="M2 13 L40 10 L70 12 L100 4 L130 7 L158 2"/></svg></div>
+                <div class="box" style="padding:8px 10px"><div class="row between center"><span class="lab">＃ clips</span><span class="dotrow"><span class="dot hot"></span><span class="dot hot"></span></span></div></div>
+                <div class="divider soft"></div>
+                <div class="row between center" style="padding:2px 4px"><span class="lab mut sm">＃ announcements</span><span class="dot"></span></div>
+                <div class="row between center" style="padding:2px 4px"><span class="lab mut sm">＃ trade</span><span class="dot"></span></div>
+                <div class="row between center" style="padding:2px 4px"><span class="lab mut sm">＃ off-topic</span><span class="dot"></span></div>
+                <div class="lab mut sm" style="padding:6px 4px">⌄ 38 quiet channels</div>
+              </div>
+            </div>
+            <!-- spotlight -->
+            <div class="pane fill col" style="padding:18px;gap:14px;overflow:hidden">
+              <div class="h-lab" style="font-size:18px">⚡ Spotlight — peak energy right now</div>
+              <div class="tile hot" style="padding:18px">
+                <div class="row between center"><div class="row center gap-s"><span class="chip live">🎙 VOICE</span><span class="h-lab" style="font-size:20px">Raid Night — Mythic prog</span></div><span class="flame">🔥🔥🔥</span></div>
+                <div class="row center gap mt"><div class="stack"><span class="av on">K</span><span class="av on">M</span><span class="av on">R</span><span class="av">T</span><span class="av">N</span><span class="av">+4</span></div><span class="lab mut">9 / 12 in · 2 squadmates · filling fast</span></div>
+                <div class="heat mt"><i style="width:78%"></i></div>
+                <div class="row gap-s mt"><span class="btn go">🎙 Jump in</span><span class="btn">Watch stream</span></div>
+              </div>
+              <div class="h-lab">Also happening</div>
+              <div class="row gap">
+                <div class="box grow"><div class="row between center"><span class="lab">🎮 Ranked 5-stack</span><span class="chip energy">need 2</span></div></div>
+                <div class="box grow"><div class="row between center"><span class="lab">📅 Guild War</span><span class="chip energy">18m</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <aside class="note">
+          <h4>How it reads</h4>
+          Keeps a sidebar people already understand — but it's <b>alive</b>: active channels float to the top with sparklines, quiet ones fold away. The main stage <b>spotlights the single hottest thing</b> with a jump-in.
+          <span class="tiny">Lowest-risk option — closest to what guilds know today.</span>
+        </aside>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ════════════════ COMMAND CENTER ════════════════ -->
+  <section class="concept" id="cc">
+    <p class="lede">Three structures for the <b>officer</b> view — running a few-thousand-member guild without it becoming a part-time job. Same energy-aware DNA, pointed at the people who keep the place alive.</p>
+
+    <!-- C1 — Ops Dashboard -->
+    <div class="variant">
+      <div class="variant-head"><span class="num">1</span><h3>Ops Dashboard</h3><span class="tagline">the guild's vital signs + work queues on one landing</span></div>
+      <div class="stage">
+        <div class="win">
+          <div class="win-bar"><i></i><i></i><i></i><span class="ttl">Guildhall — Officer console</span></div>
+          <div class="win-body" style="--h:660px">
+            <div class="nav">
+              <div class="ni brand"><span class="ic">⚔</span></div>
+              <div class="ni on"><span class="ic">📊</span>Ops</div>
+              <div class="ni"><span class="ic">👥</span>Roster</div>
+              <div class="ni"><span class="ic">🛡</span>Mod</div>
+              <div class="ni"><span class="ic">✉</span>Recruit</div>
+              <div class="ni"><span class="ic">📅</span>Events</div>
+              <div class="grow"></div>
+              <div class="ni"><span class="ic">⚙</span>Set</div>
+            </div>
+            <div class="pane fill col" style="padding:16px;gap:14px;overflow:hidden">
+              <!-- KPI row -->
+              <div class="row gap">
+                <div class="tile grow"><span class="lab mut sm">Members</span><span class="metric">3,412</span></div>
+                <div class="tile grow"><span class="lab mut sm">Online now</span><span class="metric" style="color:var(--live)">418</span></div>
+                <div class="tile grow"><span class="lab mut sm">New this week</span><span class="metric">+57 <span class="u">↑</span></span></div>
+                <div class="tile grow"><span class="lab mut sm">7-day active</span><span class="metric">61<span class="u">%</span></span></div>
+              </div>
+              <!-- heatmap -->
+              <div class="box col" style="overflow:hidden">
+                <div class="row between center mb"><span class="h-lab">When &amp; where the energy is</span><span class="lab mut sm">past 7 days · all channels</span></div>
+                <div class="hm">
+                  <div class="hm-rows">
+                    <span class="lab">🎙 voice</span><span class="lab">＃ strategy</span><span class="lab">＃ clips</span><span class="lab">＃ trade</span><span class="lab">＃ general</span>
+                  </div>
+                  <div class="hm-wrap">
+                    <div class="hm-grid" data-rows="5" data-cols="24"></div>
+                    <div class="hm-axis"><span>12a</span><span>6a</span><span>12p</span><span>6p · peak</span><span>now</span></div>
+                  </div>
+                </div>
+              </div>
+              <!-- queues -->
+              <div class="row gap fill" style="overflow:hidden">
+                <div class="box col grow" style="overflow:hidden">
+                  <div class="row between center mb"><span class="h-lab">🛡 Needs a decision</span><span class="chip flag">4</span></div>
+                  <div class="col gap-s">
+                    <div class="row center gap-s"><span class="chip flag">report</span><span class="lab">Xyl flamed in #trade</span><span class="grow"></span><span class="btn sm">Review</span></div>
+                    <div class="divider soft"></div>
+                    <div class="row center gap-s"><span class="chip">automod</span><span class="lab mut">3 links held</span><span class="grow"></span><span class="btn sm">Open</span></div>
+                  </div>
+                </div>
+                <div class="box col grow" style="overflow:hidden">
+                  <div class="row between center mb"><span class="h-lab">✉ Recruitment</span><span class="chip energy">9 pending</span></div>
+                  <div class="tile" style="padding:10px"><div class="row center gap-s"><span class="av sm">N</span><span class="lab">Nyx · 2.1k MMR</span><span class="grow"></span><span class="btn go sm">✓</span><span class="btn sm">✕</span></div></div>
+                  <div class="tile" style="padding:10px;margin-top:8px"><div class="row center gap-s"><span class="av sm">P</span><span class="lab">Pell · referred</span><span class="grow"></span><span class="btn go sm">✓</span><span class="btn sm">✕</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <aside class="note">
+          <h4>How it reads</h4>
+          Officers land on <b>vital signs</b> + a heatmap of when/where activity happens, then clear <b>work queues</b> (mod, recruiting) inline. Running the guild becomes triage, not archaeology.
+          <span class="tiny">The heatmap doubles as scheduling intel: run events at peak.</span>
+        </aside>
+      </div>
+    </div>
+
+    <!-- C2 — Roster Command -->
+    <div class="variant">
+      <div class="variant-head"><span class="num">2</span><h3>Roster Command</h3><span class="tagline">members as a powerful, filterable table with bulk actions</span></div>
+      <div class="stage">
+        <div class="win">
+          <div class="win-bar"><i></i><i></i><i></i><span class="ttl">Guildhall — Roster</span></div>
+          <div class="win-body" style="--h:620px">
+            <div class="nav">
+              <div class="ni brand"><span class="ic">⚔</span></div>
+              <div class="ni"><span class="ic">📊</span>Ops</div>
+              <div class="ni on"><span class="ic">👥</span>Roster</div>
+              <div class="ni"><span class="ic">🛡</span>Mod</div>
+              <div class="ni"><span class="ic">✉</span>Recruit</div>
+            </div>
+            <!-- segments -->
+            <div class="pane col" style="width:208px;flex:0 0 208px">
+              <div class="pane-h">Segments</div>
+              <div class="col gap-s" style="padding:0 10px">
+                <div class="row between center" style="padding:6px 8px;border-radius:8px;background:var(--fill-2)"><span class="lab">All members</span><span class="lab mut sm">3,412</span></div>
+                <div class="row between center" style="padding:6px 8px;border-radius:8px;background:var(--energy);color:#fff"><span class="lab" style="color:#fff">Inactive 30d</span><span class="lab sm" style="color:#fff">210</span></div>
+                <div class="row between center" style="padding:6px 8px"><span class="lab">New recruits</span><span class="lab mut sm">57</span></div>
+                <div class="row between center" style="padding:6px 8px"><span class="lab">Raid team</span><span class="lab mut sm">40</span></div>
+                <div class="row between center" style="padding:6px 8px"><span class="lab">Officers</span><span class="lab mut sm">12</span></div>
+                <div class="divider soft"></div>
+                <div class="lab mut sm" style="padding:4px 8px">+ new segment</div>
+              </div>
+            </div>
+            <!-- table -->
+            <div class="pane fill col" style="overflow:hidden">
+              <div class="row center gap-s" style="padding:12px 14px 8px"><span class="chip">🔎 search</span><span class="chip">rank ▾</span><span class="chip">last active ▾</span><span class="grow"></span><span class="lab mut sm">210 in "Inactive 30d"</span></div>
+              <div style="padding:0 14px 8px"><div class="bulkbar"><span class="cbx on"></span><span class="hand" style="font-size:15px">3 selected</span><span class="grow"></span><span class="btn sm">Promote</span><span class="btn sm">Assign squad</span><span class="btn sm">Message</span><span class="btn sm" style="border-color:var(--flag);color:var(--flag)">Remove</span></div></div>
+              <div style="padding:0 14px;overflow:hidden">
+                <table class="tbl">
+                  <tr><th style="width:26px"></th><th>Member</th><th>Rank</th><th>Squad</th><th>Last active</th><th>30-day activity</th></tr>
+                  <tr><td><span class="cbx on"></span></td><td><span class="row center gap-s"><span class="av sm">D</span>Dre</span></td><td><span class="chip sm">Member</span></td><td>—</td><td>34 days</td><td><span class="mini"><i style="width:6%"></i></span></td></tr>
+                  <tr><td><span class="cbx on"></span></td><td><span class="row center gap-s"><span class="av sm">V</span>Vael</span></td><td><span class="chip sm">Member</span></td><td>Bravo</td><td>41 days</td><td><span class="mini"><i style="width:3%"></i></span></td></tr>
+                  <tr><td><span class="cbx on"></span></td><td><span class="row center gap-s"><span class="av sm">O</span>Oryn</span></td><td><span class="chip sm">Recruit</span></td><td>—</td><td>38 days</td><td><span class="mini"><i style="width:9%"></i></span></td></tr>
+                  <tr><td><span class="cbx"></span></td><td><span class="row center gap-s"><span class="av sm">K</span>Kaela</span></td><td><span class="chip sm energy">Raider</span></td><td>Alpha</td><td>2h</td><td><span class="mini"><i style="width:88%"></i></span></td></tr>
+                  <tr><td><span class="cbx"></span></td><td><span class="row center gap-s"><span class="av sm">M</span>Mox</span></td><td><span class="chip sm energy">Raider</span></td><td>Alpha</td><td>5m</td><td><span class="mini"><i style="width:94%"></i></span></td></tr>
+                  <tr><td><span class="cbx"></span></td><td><span class="row center gap-s"><span class="av sm">Z</span>Zin</span></td><td><span class="chip sm">Member</span></td><td>Charlie</td><td>1d</td><td><span class="mini"><i style="width:52%"></i></span></td></tr>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <aside class="note">
+          <h4>How it reads</h4>
+          Treat members like the asset they are. <b>Saved segments</b> ("Inactive 30d", "New recruits") + <b>bulk actions</b> turn re-engagement and squad management into a few clicks instead of DM-by-DM.
+          <span class="tiny">Energy tie-in: activity column &amp; segments are built from the same heat signal.</span>
+        </aside>
+      </div>
+    </div>
+
+    <!-- C3 — Control Room -->
+    <div class="variant">
+      <div class="variant-head"><span class="num">3</span><h3>Control Room</h3><span class="tagline">real-time view to moderate &amp; steer while it's happening</span></div>
+      <div class="stage">
+        <div class="win">
+          <div class="win-bar"><i></i><i></i><i></i><span class="ttl">Guildhall — Live control</span></div>
+          <div class="win-body" style="--h:620px">
+            <div class="nav">
+              <div class="ni brand"><span class="ic">⚔</span></div>
+              <div class="ni"><span class="ic">📊</span>Ops</div>
+              <div class="ni"><span class="ic">👥</span>Roster</div>
+              <div class="ni on"><span class="ic">🛡</span>Live</div>
+              <div class="ni"><span class="ic">✉</span>Recruit</div>
+            </div>
+            <!-- live rooms -->
+            <div class="pane fill col" style="padding:16px;gap:12px;overflow:hidden">
+              <div class="row between center"><span class="h-lab" style="font-size:18px">🎙 Live now — 38 in voice</span><span class="chip live">● realtime</span></div>
+              <div class="tile hot">
+                <div class="row between center"><span class="h-lab">Raid Night — Mythic prog</span><span class="lab mut sm">9 / 12</span></div>
+                <div class="row wrap gap-s mt-s">
+                  <span class="chip live">🎙 Kaela <b style="margin-left:4px">speaking</b></span>
+                  <span class="chip">Mox</span><span class="chip">Rho</span><span class="chip">Tev</span><span class="chip flag">Xyl ⚠</span><span class="chip">+4</span>
+                </div>
+                <div class="row wrap gap-s mt"><span class="btn sm">Mute Xyl</span><span class="btn sm">Move…</span><span class="btn sm" style="border-color:var(--flag);color:var(--flag)">Disconnect</span></div>
+              </div>
+              <div class="row gap">
+                <div class="box grow"><div class="row between center"><span class="lab">Chill Lounge</span><span class="lab mut sm">4</span></div><div class="stack mt-s"><span class="av sm">A</span><span class="av sm">B</span><span class="av sm">+2</span></div></div>
+                <div class="box grow"><div class="row between center"><span class="lab">Ranked Q</span><span class="lab mut sm">2</span></div><div class="stack mt-s"><span class="av sm">C</span><span class="av sm">D</span></div></div>
+              </div>
+            </div>
+            <!-- live feeds -->
+            <div class="pane r col" style="width:312px;flex:0 0 312px;overflow:hidden">
+              <div class="pane-h">🚩 Flags &amp; reports · live</div>
+              <div class="col gap-s" style="padding:0 12px">
+                <div class="box" style="padding:10px;border-color:var(--flag)"><div class="row center gap-s"><span class="chip flag">report</span><span class="lab sm">Xyl — harassment</span></div><div class="lab mut sm mt-s">in 🎙 Raid Night · 30s ago</div><div class="row gap-s mt-s"><span class="btn sm">Warn</span><span class="btn sm">Timeout</span><span class="btn sm">View</span></div></div>
+                <div class="box" style="padding:10px"><div class="row center gap-s"><span class="chip">automod</span><span class="lab sm">3 links held</span></div><div class="row gap-s mt-s"><span class="btn sm">Allow</span><span class="btn sm">Purge</span></div></div>
+              </div>
+              <div class="pane-h" style="margin-top:10px">👁 Watch list · 2</div>
+              <div class="col gap-s" style="padding:0 12px">
+                <div class="row center gap-s"><span class="av sm">X</span><span class="lab sm">Xyl</span><span class="grow"></span><span class="chip flag sm">2 strikes</span></div>
+                <div class="row center gap-s"><span class="av sm">Q</span><span class="lab sm">Quss</span><span class="grow"></span><span class="chip sm">new</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <aside class="note">
+          <h4>How it reads</h4>
+          A <b>live ops room</b>: every active voice channel with inline mute / move / disconnect, plus a realtime stream of flags &amp; auto-mod catches. Officers intervene <b>in the moment</b>, not after the screenshots land in DMs.
+          <span class="tiny">Best paired with Pulse — same live-activity engine, officer-grade controls.</span>
+        </aside>
+      </div>
+    </div>
+
+  </section>
+
+  <p class="footer-hint">low-fi wireframes · structure over polish — tell me which skeleton to take to hi-fi</p>
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===t));
+    const id=t.dataset.tab;
+    document.querySelectorAll('.concept').forEach(c=>c.classList.toggle('show',c.id===id));
+    window.scrollTo({top:0});
+  }));
+  const nt=document.getElementById('notesToggle');
+  nt.addEventListener('click',()=>{nt.classList.toggle('on');document.body.classList.toggle('no-notes',!nt.classList.contains('on'));});
+
+  // build activity heatmaps — evening-peaked so "where the energy is" reads clearly
+  document.querySelectorAll('.hm-grid').forEach(g=>{
+    const rows=+g.dataset.rows, cols=+g.dataset.cols;
+    g.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+    g.style.gridTemplateRows=`repeat(${rows},1fr)`;
+    const rowBase=[1,.82,.7,.55,.6]; // voice + strategy hottest
+    for(let r=0;r<rows;r++){
+      for(let c=0;c<cols;c++){
+        const hour=c/cols*24;
+        // peak ~19:00–22:00, low overnight
+        const t=Math.max(0,Math.cos((hour-20)/24*Math.PI*2)*0.5+0.5);
+        const evening=hour>17&&hour<23?1:0.55;
+        let v=t*evening*(rowBase[r]||.6);
+        v=Math.min(1,v*1.15 + (Math.sin(r*3+c)*0.05));
+        const cell=document.createElement('div');
+        cell.className='hm-cell';
+        if(v>0.08) cell.style.background=`rgba(232,114,46,${(0.12+v*0.85).toFixed(2)})`;
+        g.appendChild(cell);
+      }
+    }
+  });
+</script>
+</body>
+</html>

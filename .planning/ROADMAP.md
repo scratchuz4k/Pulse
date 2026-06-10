@@ -25,7 +25,7 @@ Each phase delivers a working, runnable slice of the app. By end of Phase 1 you 
 **Goal:** A complete, usable voice room — mic control, deafen, presence list, speaking indicators, room creation.
 **Mode:** mvp
 **Requirements:** VOICE-04, VOICE-05, VOICE-06, ROOM-01, ROOM-02, ROOM-03
-**Plans:** 5 plans
+**Plans:** 9 plans (4 gap closure)
 **Success Criteria:**
 1. User can create a named voice room; it appears in the room list for all connected clients
 2. Push-to-talk mode works — audio only transmits while the configured key is held
@@ -39,14 +39,19 @@ Plans:
 - [x] 02-02-PLAN.md — Mute broadcast: PresenceHub MuteChanged, store isMuted, ParticipantMuted/Unuted listeners, 🔇 icon
 - [x] 02-03-PLAN.md — Room list wiring: roomStore.rooms, RoomListUpdated listener, voice feed renders all rooms, one-click join
 - [x] 02-04-PLAN.md — Push-to-talk: globalShortcut IPC, preload bridge, usePtt composable, Settings key-capture UI
-- [ ] 02-05-PLAN.md — Deafen fix + speaking indicators: prevMicEnabled save/restore, ROOM-02 userId matching verified
+- [x] 02-05-PLAN.md — Deafen fix + speaking indicators: prevMicEnabled save/restore, ROOM-02 userId matching verified
 
 ---
 
-### Phase 3: Priority Speaker
+### Phase 3: Priority Speaker ✅
 **Goal:** Admin can assign priority speaker; when they talk, everyone else gets ducked.
 **Mode:** mvp
 **Requirements:** PRIOR-01, PRIOR-02, PRIOR-03, PRIOR-04
+**Completed:** 2026-06-10
+**Plans:**
+- [x] 03-01-PLAN.md — Server state: AssignPrioritySpeaker/RemovePrioritySpeaker hub methods, CreatedByUserId admin stamp
+- [x] 03-02-PLAN.md — Audio ducking: applyDucking() at 0.15 volume, PrioritySpeakerChanged SignalR wiring
+- [x] 03-03-PLAN.md — Admin UI: ★ badge for all participants, assign/remove button for admin only
 **Success Criteria:**
 1. Admin can assign the priority speaker role to any participant in a room
 2. When the priority speaker transmits, all other participants hear their own incoming audio reduced by a configurable dB amount

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useAuthStore } from './auth'
 
 export interface Participant {
   connectionId: string
@@ -9,15 +10,30 @@ export interface Participant {
   isDeafened: boolean
 }
 
+export interface RoomParticipantSummary {
+  displayName: string
+  userId: string
+}
+
 export interface RoomInfo {
   id: number
   name: string
+  createdByUserId?: string
+  participants: RoomParticipantSummary[]
 }
 
 export const useRoomStore = defineStore('room', () => {
+  const authStore = useAuthStore()
   const currentRoomName = ref<string | null>(null)
   const participants = ref<Participant[]>([])
   const rooms = ref<RoomInfo[]>([])
+  const prioritySpeakerId = ref<string | null>(null)
+
+  const isAdmin = computed(() => {
+    if (!currentRoomName.value) return false
+    const room = rooms.value.find(r => r.name === currentRoomName.value)
+    return !!room?.createdByUserId && room.createdByUserId === authStore.userId
+  })
 
   function setRoom(roomName: string, parts: Omit<Participant, 'isMuted'>[]): void {
     currentRoomName.value = roomName
@@ -52,19 +68,26 @@ export const useRoomStore = defineStore('room', () => {
   }
 
   function setRoomList(list: RoomInfo[]): void {
-    rooms.value = list
+    rooms.value = list.map(r => ({ ...r, participants: r.participants ?? [] }))
+  }
+
+  function setPrioritySpeaker(userId: string | null): void {
+    prioritySpeakerId.value = userId
   }
 
   return {
     currentRoomName,
     participants,
     rooms,
+    prioritySpeakerId,
+    isAdmin,
     setRoom,
     addParticipant,
     removeParticipant,
     clearRoom,
     setParticipantMuted,
     setParticipantDeafened,
-    setRoomList
+    setRoomList,
+    setPrioritySpeaker
   }
 })

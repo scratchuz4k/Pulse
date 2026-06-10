@@ -16,9 +16,9 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot | Split-Path -Parent
 
 # Terminal 1 — LiveKit SFU (port 7880)
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "livekit-server --dev --bind 0.0.0.0" -WindowStyle Normal
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root'; & '$root\livekit-server.exe' --config '$root\livekit.yaml'" -WindowStyle Normal
 
-# Terminal 2 — C# backend (port 5000)
+# Terminal 2 — C# backend (port 5104)
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\Pulse.Server'; dotnet run" -WindowStyle Normal
 
 # Give servers a moment to start
