@@ -56,7 +56,12 @@
           </span>
           <!-- Admin controls -->
           <div v-if="authStore.isAdmin" class="wc-admin-btns">
-            <button class="wc-dissolve-btn" @click="handleDissolve(group.groupId)">Dissolve</button>
+            <template v-if="dissolvePending === group.groupId">
+              <span class="wc-dissolve-confirm-label">Sure?</span>
+              <button class="wc-dissolve-btn wc-dissolve-btn--confirm" @click="confirmDissolve(group.groupId)">Yes</button>
+              <button class="wc-dissolve-btn" @click="dissolvePending = null">No</button>
+            </template>
+            <button v-else class="wc-dissolve-btn" @click="dissolvePending = group.groupId">Dissolve</button>
           </div>
         </div>
 
@@ -138,6 +143,7 @@ const dragOverGroup = ref<string | null>(null)
 const createVisibility = ref<'hidden' | 'existence' | 'full'>('hidden')
 const createError = ref('')
 const openMicGroups = ref<Record<string, boolean>>({})
+const dissolvePending = ref<string | null>(null)
 
 
 function isSpeaking(groupId: string, userId: string): boolean {
@@ -175,8 +181,8 @@ function onDrop(e: DragEvent, groupId: string): void {
   addWhisperMember(groupId, userId).catch(err => { createError.value = String(err) })
 }
 
-function handleDissolve(groupId: string): void {
-  if (!confirm(`Dissolve group "${groupId}"?`)) return
+function confirmDissolve(groupId: string): void {
+  dissolvePending.value = null
   dissolveWhisperGroup(groupId)
 }
 
@@ -427,6 +433,11 @@ onMounted(() => {
   font-family: inherit;
 }
 .wc-dissolve-btn:hover { color: var(--live); border-color: var(--live); }
+.wc-dissolve-btn--confirm { color: var(--live); border-color: var(--live); }
+.wc-dissolve-confirm-label {
+  font-size: 10px;
+  color: var(--c-ink-4);
+}
 .wc-remove-btn {
   flex: 0 0 auto;
   width: 16px;
