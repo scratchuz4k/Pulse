@@ -98,6 +98,9 @@
           </div>
         </div>
 
+        <!-- Resizable whisper sidebar -->
+        <div class="whisper-resizer" @mousedown="startResize" />
+        <WhisperPanel :style="{ width: whisperWidth + 'px', flex: `0 0 ${whisperWidth}px` }" />
       </div>
     </div>
   </div>
@@ -105,6 +108,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
+import WhisperPanel from "../components/WhisperPanel.vue";
 import { useRoomStore } from "../stores/room";
 import { useAuthStore } from "../stores/auth";
 import { useAuth } from "../composables/useAuth";
@@ -136,8 +140,24 @@ const { isPttMode } = usePtt();
 
 const roomNameInput = ref("");
 const joining = ref(false);
+const whisperWidth = ref(320);
 const activeExpanded = ref(true);
 const expandedRooms = ref(new Set<string>());
+
+function startResize(e: MouseEvent): void {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = whisperWidth.value;
+  function onMove(ev: MouseEvent): void {
+    whisperWidth.value = Math.max(200, Math.min(600, startWidth + (startX - ev.clientX)));
+  }
+  function onUp(): void {
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+  }
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+}
 
 function toggleRoom(name: string): void {
   if (expandedRooms.value.has(name)) expandedRooms.value.delete(name);
@@ -544,5 +564,15 @@ void isConnected;
   margin: 0 0 4px;
   font-size: 14px;
 }
-
+.whisper-resizer {
+  width: 5px;
+  flex: 0 0 5px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+.whisper-resizer:hover,
+.whisper-resizer:active {
+  background: var(--accent);
+}
 </style>
