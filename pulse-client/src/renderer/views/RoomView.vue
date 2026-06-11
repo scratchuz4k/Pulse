@@ -35,7 +35,7 @@
                   v-for="p in roomStore.participants"
                   :key="p.connectionId"
                   class="ch-member"
-                  :class="{ speaking: activeSpeakers.includes(p.userId) }"
+                  :class="{ speaking: activeSpeakers.includes(p.userId), 'ps-active': p.userId === roomStore.prioritySpeakerId }"
                   draggable="true"
                   @dragstart="onParticipantDragStart($event, p.userId)"
                 >
@@ -44,6 +44,14 @@
                     <span v-if="activeSpeakers.includes(p.userId)" class="ch-speaking-ring" />
                   </div>
                   <span class="ch-name">{{ p.displayName }}</span>
+                  <span v-if="p.userId === roomStore.prioritySpeakerId" class="ch-ps-badge" title="Priority Speaker">★</span>
+                  <button
+                    v-if="roomStore.isAdmin"
+                    class="ch-ps-btn"
+                    :class="{ 'ch-ps-btn--active': p.userId === roomStore.prioritySpeakerId }"
+                    :title="p.userId === roomStore.prioritySpeakerId ? 'Remove priority speaker' : 'Assign priority speaker'"
+                    @click.stop="togglePrioritySpeaker(p.userId)"
+                  >★</button>
                   <svg class="ch-drag-icon" viewBox="0 0 16 16" width="10" height="10" fill="currentColor">
                     <circle cx="5" cy="4" r="1.2"/><circle cx="11" cy="4" r="1.2"/>
                     <circle cx="5" cy="8" r="1.2"/><circle cx="11" cy="8" r="1.2"/>
@@ -470,6 +478,31 @@ void isConnected;
   transition: opacity 0.1s;
 }
 .ch-member:hover .ch-drag-icon { opacity: 1; }
+.ch-member.ps-active { background: rgba(240, 167, 0, 0.08); }
+.ch-ps-badge {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--warn, #f0a500);
+}
+.ch-ps-btn {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--c-ink-5);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.1s, color 0.1s;
+}
+.ch-member:hover .ch-ps-btn { opacity: 1; }
+.ch-ps-btn--active { color: var(--warn, #f0a500) !important; opacity: 1 !important; }
+.ch-ps-btn:hover { color: var(--warn, #f0a500); }
 
 .join-card {
   border: 1.5px dashed var(--c-border-2);
