@@ -182,7 +182,9 @@ onMounted(() => {
     await setMainMicEnabled(false)
     await broadcastMuteChanged(true)
     for (const group of myGroups) {
-      await getWhisperRoom(group.groupId)?.localParticipant.setMicrophoneEnabled(true)
+      await getWhisperRoom(group.groupId)?.localParticipant.setMicrophoneEnabled(true, {
+        noiseSuppression: true, echoCancellation: true, autoGainControl: true,
+      })
     }
   })
 

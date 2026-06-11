@@ -135,6 +135,7 @@ const {
   isConnected,
   isMicEnabled,
   activeSpeakers,
+  setMainMicEnabled,
 } = useLiveKit();
 const { isPttMode } = usePtt();
 
@@ -183,10 +184,8 @@ function togglePrioritySpeaker(userId: string): void {
 }
 
 async function setMicEnabled(v: boolean): Promise<void> {
-  // PTT mic toggling — only acts when in PTT mode
-  if (isMicEnabled.value !== v) {
-    await broadcastMuteChanged(!v);
-  }
+  await setMainMicEnabled(v)
+  await broadcastMuteChanged(!v)
 }
 
 onMounted(() => {
