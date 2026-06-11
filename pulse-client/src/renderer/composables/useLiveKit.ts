@@ -18,6 +18,7 @@ const outputDevices = ref<AudioDevice[]>([])
 const activeInputId = ref<string>('')
 const activeOutputId = ref<string>('')
 const prioritySpeakerId = ref<string | null>(null)
+const isDeafened = ref(false)
 
 async function refreshDevices(unlockLabels: boolean = true): Promise<void> {
   // getUserMedia must be called from this context to unlock device labels
@@ -121,7 +122,11 @@ export function useLiveKit() {
     isConnected.value = true
 
     try {
-      await room.localParticipant.setMicrophoneEnabled(desiredMicEnabled)
+      await room.localParticipant.setMicrophoneEnabled(desiredMicEnabled, {
+        noiseSuppression: true,
+        echoCancellation: true,
+        autoGainControl: true,
+      })
       console.log('[LiveKit] microphone', desiredMicEnabled ? 'enabled' : 'disabled')
       isMicEnabled.value = desiredMicEnabled
     } catch (err) {
@@ -165,7 +170,11 @@ export function useLiveKit() {
   async function toggleMic(): Promise<void> {
     if (!mainRoom) return
     const next = !isMicEnabled.value
-    await mainRoom.localParticipant.setMicrophoneEnabled(next)
+    await mainRoom.localParticipant.setMicrophoneEnabled(next, {
+      noiseSuppression: true,
+      echoCancellation: true,
+      autoGainControl: true,
+    })
     isMicEnabled.value = next
   }
 
@@ -260,7 +269,11 @@ export function useLiveKit() {
 
   async function setMainMicEnabled(enabled: boolean): Promise<void> {
     if (!mainRoom) return
-    await mainRoom.localParticipant.setMicrophoneEnabled(enabled)
+    await mainRoom.localParticipant.setMicrophoneEnabled(enabled, {
+      noiseSuppression: true,
+      echoCancellation: true,
+      autoGainControl: true,
+    })
     isMicEnabled.value = enabled
   }
 
@@ -274,7 +287,11 @@ export function useLiveKit() {
       if (muted) {
         await room.localParticipant.setMicrophoneEnabled(false)
       } else {
-        if (whisperOpenMic.get(groupId)) await room.localParticipant.setMicrophoneEnabled(true)
+        if (whisperOpenMic.get(groupId)) await room.localParticipant.setMicrophoneEnabled(true, {
+          noiseSuppression: true,
+          echoCancellation: true,
+          autoGainControl: true,
+        })
       }
     }
   }
@@ -293,5 +310,6 @@ export function useLiveKit() {
     prioritySpeakerId, setPrioritySpeaker,
     connectWhisper, disconnectWhisper, getWhisperRoom, setMainMicEnabled,
     applyMuteToWhisperRooms, applyDeafenToWhisperRooms, setWhisperOpenMicCache,
+    isDeafened,
   }
 }
