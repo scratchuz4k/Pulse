@@ -80,6 +80,20 @@ Plans:
 
 ---
 
+### Phase 4.1: Server Creation ✅
+**Goal:** Users can create named servers (organizations) that group voice rooms under one roof. Each server has an owner/admin; members join via invite code.
+**Mode:** mvp
+**Requirements:** SRV-10, SRV-11, SRV-12, SRV-13
+**Depends on:** Phase 4
+**Completed:** 2026-06-11
+**Plans:** 4 plans
+
+Plans:
+- [x] 04.1-01-PLAN.md — DB entities (Server, ServerMember) + ServersController (Wave 1)
+- [x] 04.1-02-PLAN.md — PresenceHub refactor: server groups, owner-based admin checks (Wave 2)
+- [x] 04.1-03-PLAN.md — Client: useServerStore, usePresence scoping, router guard (Wave 2 ‖ 02)
+- [x] 04.1-04-PLAN.md — Dashboard + server switcher UI (Wave 3)
+
 ### Phase 5: Text Channels
 **Goal:** Users can send and receive text messages in named channels alongside voice.
 **Mode:** mvp

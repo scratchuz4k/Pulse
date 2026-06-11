@@ -3,14 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in_progress
-last_updated: 2026-06-10T22:00:00.000Z
+last_updated: "2026-06-11T00:00:00.000Z"
 progress:
-  total_phases: 6
-  completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
-  percent: 67
-stopped_at: Phase 04 complete — whisper side-channel: server hub (04-01), multi-room LiveKit (04-02), IPC+store+SignalR wiring (04-03), WhisperPanel UI (04-04)
+  total_phases: 7
+  completed_phases: 5
+  total_plans: 23
+  completed_plans: 23
+  percent: 71
 ---
 
 # Pulse — Project State
@@ -27,12 +26,13 @@ stopped_at: Phase 04 complete — whisper side-channel: server hub (04-01), mult
 | 2 | Full Room Experience | ✅ Complete |
 | 3 | Priority Speaker | ✅ Complete |
 | 4 | Whisper Side-Channel | ✅ Complete |
+| 4.1 | Server Creation | ✅ Complete |
 | 5 | Text Channels | 🔲 Not started |
 | 6 | Pulse Activity Feed | 🔲 Not started |
 
 ## Last Action
 
-Phase 04 all 4 plans complete — 2026-06-10 (whisper server hub, multi-room LiveKit refactor, IPC+store+SignalR wiring, WhisperPanel UI + RoomView tab switcher)
+Phase 04.1 all 4 plans complete — 2026-06-11 (Server/ServerMember models + REST endpoints, PresenceHub server-scoped refactor, client useServerStore + API routing, Dashboard + server switcher UI)
 
 ## Decisions
 
@@ -54,3 +54,9 @@ Phase 04 all 4 plans complete — 2026-06-10 (whisper server hub, multi-room Liv
 - GSD subagents (gsd-project-researcher, gsd-research-synthesizer, gsd-roadmapper) not installed. Research step skipped; roadmap created inline.
 - Run `npx get-shit-done-cc@latest --global` to install agents for future projects.
 - Dev: delete Pulse.Server/pulse.db before running server after Plan 01 — EnsureCreated does not migrate existing DBs.
+
+## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 04.1 inserted after Phase 4: Server Creation: organizations grouping voice rooms with admin/invite system (URGENT)
