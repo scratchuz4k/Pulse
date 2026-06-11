@@ -46,7 +46,7 @@
                   <span class="ch-name">{{ p.displayName }}</span>
                   <span v-if="p.userId === roomStore.prioritySpeakerId" class="ch-ps-badge" title="Priority Speaker">★</span>
                   <button
-                    v-if="roomStore.isAdmin"
+                    v-if="whisperStore.isAdmin"
                     class="ch-ps-btn"
                     :class="{ 'ch-ps-btn--active': p.userId === roomStore.prioritySpeakerId }"
                     :title="p.userId === roomStore.prioritySpeakerId ? 'Remove priority speaker' : 'Assign priority speaker'"
@@ -112,12 +112,14 @@
 import { ref, onMounted, onUnmounted } from "vue";
 import WhisperPanel from "../components/WhisperPanel.vue";
 import { useRoomStore } from "../stores/room";
+import { useWhisperStore } from "../stores/whisper";
 import { useAuth } from "../composables/useAuth";
 import { usePresence } from "../composables/usePresence";
 import { useLiveKit } from "../composables/useLiveKit";
 import { usePtt } from "../composables/usePtt";
 
 const roomStore = useRoomStore();
+const whisperStore = useWhisperStore();
 const { fetchLiveKitToken } = useAuth();
 const {
   connect,

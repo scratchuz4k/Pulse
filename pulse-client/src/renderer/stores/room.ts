@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { useAuthStore } from './auth'
+import { ref } from 'vue'
 
 export interface Participant {
   connectionId: string
@@ -23,17 +22,10 @@ export interface RoomInfo {
 }
 
 export const useRoomStore = defineStore('room', () => {
-  const authStore = useAuthStore()
   const currentRoomName = ref<string | null>(null)
   const participants = ref<Participant[]>([])
   const rooms = ref<RoomInfo[]>([])
   const prioritySpeakerId = ref<string | null>(null)
-
-  const isAdmin = computed(() => {
-    if (!currentRoomName.value) return false
-    const room = rooms.value.find(r => r.name === currentRoomName.value)
-    return !!room?.createdByUserId && room.createdByUserId === authStore.userId
-  })
 
   function setRoom(roomName: string, parts: Omit<Participant, 'isMuted'>[]): void {
     currentRoomName.value = roomName
@@ -80,7 +72,6 @@ export const useRoomStore = defineStore('room', () => {
     participants,
     rooms,
     prioritySpeakerId,
-    isAdmin,
     setRoom,
     addParticipant,
     removeParticipant,
