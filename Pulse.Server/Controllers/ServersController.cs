@@ -36,7 +36,7 @@ public class ServersController(AppDbContext db, IHubContext<PresenceHub> hubCont
         {
             await db.SaveChangesAsync();
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("UNIQUE") == true)
         {
             return Conflict(new { error = "A server with that name already exists." });
         }
@@ -129,7 +129,7 @@ public class ServersController(AppDbContext db, IHubContext<PresenceHub> hubCont
         {
             await db.SaveChangesAsync();
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("UNIQUE") == true)
         {
             return Conflict(new { error = "A room with that name already exists in this server." });
         }

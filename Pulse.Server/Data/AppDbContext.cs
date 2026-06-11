@@ -16,6 +16,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Models.Server>()
+            .HasIndex(s => s.Name)
+            .IsUnique();
         modelBuilder.Entity<Room>()
             .HasIndex(r => new { r.ServerId, r.Name })
             .IsUnique();
