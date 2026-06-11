@@ -87,10 +87,11 @@ export function useLiveKit() {
     room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
       console.log('[LiveKit] track subscribed', track.kind, participant.identity)
       if (track.kind === Track.Kind.Audio) {
-        const el = track.attach()
+        const el = track.attach() as HTMLAudioElement
         el.id = `livekit-audio-${participant.identity}`
-        if (activeOutputId.value && typeof (el as HTMLAudioElement).setSinkId === 'function') {
-          (el as HTMLAudioElement).setSinkId(activeOutputId.value).catch(() => {})
+        if (isDeafened.value) el.volume = 0
+        if (activeOutputId.value && typeof el.setSinkId === 'function') {
+          el.setSinkId(activeOutputId.value).catch(() => {})
         }
         document.body.appendChild(el)
       }
@@ -185,10 +186,11 @@ export function useLiveKit() {
 
     room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
       if (track.kind === Track.Kind.Audio) {
-        const el = track.attach()
+        const el = track.attach() as HTMLAudioElement
         el.id = `whisper-audio-${groupId}-${participant.identity}` // CRITICAL: distinct prefix
-        if (activeOutputId.value && typeof (el as HTMLAudioElement).setSinkId === 'function') {
-          (el as HTMLAudioElement).setSinkId(activeOutputId.value).catch(() => {})
+        if (isDeafened.value) el.volume = 0
+        if (activeOutputId.value && typeof el.setSinkId === 'function') {
+          el.setSinkId(activeOutputId.value).catch(() => {})
         }
         document.body.appendChild(el)
       }

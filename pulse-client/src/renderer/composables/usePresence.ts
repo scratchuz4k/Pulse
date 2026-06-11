@@ -20,6 +20,8 @@ async function applyWhisperOpenMic(
   const openMic = await window.pulseApi.getWhisperOpenMic(groupId)
   setWhisperOpenMicCache(groupId, openMic)
   if (openMic) {
+    const { isDeafened, isExplicitlyMuted } = useLiveKit()
+    if (isDeafened.value || isExplicitlyMuted.value) return
     const room = getWhisperRoom(groupId)
     await room?.localParticipant?.setMicrophoneEnabled(true)
   }
