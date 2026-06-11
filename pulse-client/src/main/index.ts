@@ -143,10 +143,12 @@ app.whenReady().then(async () => {
   uIOhook.on('keydown', (e) => {
     const whisperCode = getWhisperPttKeycode()
     if (whisperCode && e.keycode === whisperCode) {
+      console.log('[main] whisper ptt-keydown, keycode:', e.keycode)
       mainWindow?.webContents.send('whisper:ptt-keydown')
     }
     const code = getPttKeycode()
     if (code && e.keycode === code) {
+      console.log('[main] ptt-keydown, keycode:', e.keycode)
       mainWindow?.webContents.send('ptt:keydown')
     }
   })

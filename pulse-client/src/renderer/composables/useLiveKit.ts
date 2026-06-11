@@ -277,13 +277,19 @@ export function useLiveKit() {
   }
 
   async function setMainMicEnabled(enabled: boolean): Promise<void> {
+    console.log('[PTT] setMainMicEnabled', enabled, 'mainRoom:', !!mainRoom)
     if (!mainRoom) return
-    await mainRoom.localParticipant.setMicrophoneEnabled(enabled, {
-      noiseSuppression: true,
-      echoCancellation: true,
-      autoGainControl: true,
-    })
-    isMicEnabled.value = enabled
+    try {
+      await mainRoom.localParticipant.setMicrophoneEnabled(enabled, {
+        noiseSuppression: true,
+        echoCancellation: true,
+        autoGainControl: true,
+      })
+      isMicEnabled.value = enabled
+      console.log('[PTT] setMainMicEnabled done, isMicEnabled:', enabled)
+    } catch (err) {
+      console.error('[PTT] setMainMicEnabled failed:', err)
+    }
   }
 
   function setWhisperOpenMicCache(groupId: string, enabled: boolean): void {

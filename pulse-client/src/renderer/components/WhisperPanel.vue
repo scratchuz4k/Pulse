@@ -176,13 +176,16 @@ function handleRemoveMember(groupId: string, userId: string): void {
 
 onMounted(() => {
   window.pulseApi.onWhisperPttKeyDown(async () => {
+    console.log('[WhisperPTT] keydown, deafened:', isDeafened.value, 'muted:', isExplicitlyMuted.value, 'myGroups:', whisperStore.myGroups.length)
     if (isDeafened.value || isExplicitlyMuted.value) return
     const myGroups = whisperStore.myGroups
     if (myGroups.length === 0) return
     await setMainMicEnabled(false)
     await broadcastMuteChanged(true)
     for (const group of myGroups) {
-      await getWhisperRoom(group.groupId)?.localParticipant.setMicrophoneEnabled(true, {
+      const room = getWhisperRoom(group.groupId)
+      console.log('[WhisperPTT] enabling mic for group', group.groupId, 'room:', !!room)
+      await room?.localParticipant.setMicrophoneEnabled(true, {
         noiseSuppression: true, echoCancellation: true, autoGainControl: true,
       })
     }

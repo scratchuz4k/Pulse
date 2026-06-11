@@ -190,9 +190,11 @@ async function setMicEnabled(v: boolean): Promise<void> {
 
 onMounted(() => {
   window.pulseApi.onPttKeyDown(() => {
+    console.log('[PTT] keydown, isPttMode:', isPttMode.value, 'isConnected:', isConnected.value)
     if (isPttMode.value) setMicEnabled(true);
   });
   window.pulseApi.onPttKeyUp(() => {
+    console.log('[PTT] keyup, isPttMode:', isPttMode.value)
     if (isPttMode.value) setMicEnabled(false);
   });
 });
