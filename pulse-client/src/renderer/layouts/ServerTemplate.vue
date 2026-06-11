@@ -91,12 +91,14 @@
       </button>
     </nav>
     <RouterView />
+    <WhisperPanel />
   </MainTemplate>
 </template>
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainTemplate from "@renderer/layouts/MainTemplate.vue";
+import WhisperPanel from "@renderer/components/WhisperPanel.vue";
 import { usePresence } from '@renderer/composables/usePresence'
 import { SERVER_URL } from '@renderer/utils/config'
 

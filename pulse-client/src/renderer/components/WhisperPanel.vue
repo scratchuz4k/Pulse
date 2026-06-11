@@ -1,5 +1,5 @@
 <template>
-  <div v-if="roomStore.currentRoomName" class="whisper-panel">
+  <div class="whisper-panel">
     <div class="whisper-head">Whisper</div>
 
     <!-- Admin: create group form -->
@@ -100,8 +100,8 @@
         </div>
 
 
-        <!-- Member controls -->
-        <div v-if="group.isMember" class="wc-transmit">
+        <!-- Member controls — only relevant when in a voice channel -->
+        <div v-if="group.isMember && roomStore.currentRoomName" class="wc-transmit">
           <label class="wc-open-mic-label">
             <input
               type="checkbox"
