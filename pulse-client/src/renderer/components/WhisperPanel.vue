@@ -3,7 +3,7 @@
     <div class="whisper-head">Whisper</div>
 
     <!-- Admin: create group form -->
-    <div v-if="whisperStore.isAdmin" class="wc-create">
+    <div v-if="authStore.isAdmin" class="wc-create">
       <input
         v-model="createName"
         type="text"
@@ -55,7 +55,7 @@
             }}
           </span>
           <!-- Admin controls -->
-          <div v-if="whisperStore.isAdmin" class="wc-admin-btns">
+          <div v-if="authStore.isAdmin" class="wc-admin-btns">
             <button class="wc-dissolve-btn" @click="handleDissolve(group.groupId)">Dissolve</button>
           </div>
         </div>
@@ -83,7 +83,7 @@
             </div>
             <span class="wc-member-name">{{ displayName(userId) }}</span>
             <button
-              v-if="whisperStore.isAdmin"
+              v-if="authStore.isAdmin"
               class="wc-remove-btn"
               title="Remove member"
               @click="handleRemoveMember(group.groupId, userId)"

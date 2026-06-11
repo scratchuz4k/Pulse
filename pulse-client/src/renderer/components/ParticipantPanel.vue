@@ -89,7 +89,7 @@
           </span>
         </div>
         <button
-          v-if="whisperStore.isAdmin"
+          v-if="authStore.isAdmin"
           class="ps-btn"
           :class="{
             'ps-btn--active': p.userId === roomStore.prioritySpeakerId,
@@ -110,7 +110,7 @@
 
 <script setup lang="ts">
 import { useRoomStore } from "../stores/room";
-import { useWhisperStore } from "../stores/whisper";
+import { useAuthStore } from "../stores/auth";
 
 const props = defineProps<{
   activeSpeakers: string[];
@@ -121,7 +121,7 @@ const emit = defineEmits<{
 }>();
 
 const roomStore = useRoomStore();
-const whisperStore = useWhisperStore();
+const authStore = useAuthStore();
 
 void props;
 

@@ -111,7 +111,7 @@ export function usePresence() {
       const { disconnectWhisper } = useLiveKit()
       const whisperStore = useWhisperStore()
       await disconnectWhisper(payload.groupId)
-      if (!whisperStore.isAdmin) {
+      if (!useAuthStore().isAdmin) {
         whisperStore.removeGroup(payload.groupId)
       }
       console.log('[usePresence] WhisperGroupMemberRemoved:', payload.groupId)
@@ -131,8 +131,7 @@ export function usePresence() {
     })
 
     hubConnection.on('YouAreAdmin', () => {
-      const whisperStore = useWhisperStore()
-      whisperStore.setIsAdmin(true)
+      useAuthStore().isAdmin = true
     })
 
 
