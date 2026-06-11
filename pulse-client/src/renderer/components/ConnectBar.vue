@@ -189,11 +189,11 @@ const {
   activeOutputId,
   applyMuteToWhisperRooms,
   applyDeafenToWhisperRooms,
+  isDeafened,
 } = useLiveKit();
 const { isPttMode, pttBinding, isCapturing, startCapture } = usePtt();
 
 const showSettings = ref(false);
-const isDeafened = ref(false);
 const prevMicEnabled = ref(false);
 
 async function handleToggleMic(): Promise<void> {
