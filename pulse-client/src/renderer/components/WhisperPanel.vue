@@ -5,11 +5,6 @@
     <!-- Admin: create group form -->
     <div v-if="whisperStore.isAdmin" class="wc-create">
       <input
-        v-model="createGroupId"
-        type="text"
-        placeholder="group-id"
-      />
-      <input
         v-model="createName"
         type="text"
         placeholder="Group name"
@@ -34,11 +29,15 @@
         v-for="group in whisperStore.groups"
         :key="group.groupId"
         class="whisper-card"
-        :class="{ 'is-member': group.isMember }"
+        :class="{ 'is-member': group.isMember, 'drag-over': dragOverGroup === group.groupId, 'is-transmitting': isTransmitting(group.groupId) }"
+        @dragover.prevent="dragOverGroup = group.groupId"
+        @dragleave="dragOverGroup = null"
+        @drop.prevent="onDrop($event, group.groupId)"
       >
         <!-- Card header -->
         <div class="wc-head">
           <span class="wc-name">{{ group.name }}</span>
+          <span v-if="isTransmitting(group.groupId)" class="wc-tx-badge">● TX</span>
           <span
             class="wc-vis-badge"
             :class="{
@@ -70,18 +69,19 @@
             v-for="userId in group.memberUserIds"
             :key="userId"
             class="wc-member"
+            :class="{ speaking: isSpeaking(group.groupId, userId) }"
           >
             <div class="wc-av-wrap">
               <span
                 class="wc-av"
-                :style="{ background: avatarColor(userId) }"
-              >{{ initials(userId) }}</span>
+                :style="{ background: avatarColor(displayName(userId)) }"
+              >{{ initials(displayName(userId)) }}</span>
               <span
                 v-if="isSpeaking(group.groupId, userId)"
                 class="wc-speaking-ring"
               />
             </div>
-            <span class="wc-member-name">{{ userId }}</span>
+            <span class="wc-member-name">{{ displayName(userId) }}</span>
             <button
               v-if="whisperStore.isAdmin"
               class="wc-remove-btn"
@@ -99,46 +99,17 @@
           {{ group.memberCount }} member(s)
         </div>
 
-        <!-- Admin: add member input -->
-        <div v-if="whisperStore.isAdmin" class="wc-add-member">
-          <input
-            v-model="addMemberInput[group.groupId]"
-            type="text"
-            placeholder="userId"
-          />
-          <button class="wc-add-btn" @click="handleAddMember(group.groupId)">Add</button>
-        </div>
 
         <!-- Member controls -->
         <div v-if="group.isMember" class="wc-transmit">
-          <select
-            :value="transmitModes[group.groupId] ?? 'both'"
-            @change="(e) => handleTransmitChange(group.groupId, (e.target as HTMLSelectElement).value)"
-          >
-            <option value="both">Both (always on)</option>
-            <option value="ptt">PTT only</option>
-            <option value="whisperOnly">Whisper only</option>
-          </select>
-
-          <!-- PTT key binding -->
-          <div
-            v-if="(transmitModes[group.groupId] ?? 'both') === 'ptt'"
-            class="wc-ptt-row"
-          >
-            <span>PTT Key:</span>
-            <span
-              class="wc-key-display"
-              :class="{ capturing: capturingFor === group.groupId }"
-              @click="capturingFor = group.groupId"
-            >
-              {{ capturingFor === group.groupId ? 'Press a key…' : (pttBindings[group.groupId] ?? 'Click to bind') }}
-            </span>
-            <button
-              v-if="pttBindings[group.groupId]"
-              class="wc-dissolve-btn"
-              @click="clearPttKey(group.groupId)"
-            >Clear</button>
-          </div>
+          <label class="wc-open-mic-label">
+            <input
+              type="checkbox"
+              :checked="openMicGroups[group.groupId] ?? false"
+              @change="handleOpenMicChange(group.groupId, ($event.target as HTMLInputElement).checked)"
+            />
+            Open mic
+          </label>
         </div>
       </div>
     </div>
@@ -146,26 +117,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { codeToAccelerator } from '../composables/usePtt'
+import { ref, watch, onMounted } from 'vue'
 import { useWhisperStore } from '../stores/whisper'
 import { useRoomStore } from '../stores/room'
+import { useAuthStore } from '../stores/auth'
 import { usePresence } from '../composables/usePresence'
 import { useLiveKit } from '../composables/useLiveKit'
 
 const whisperStore = useWhisperStore()
 const roomStore = useRoomStore()
+const authStore = useAuthStore()
 const { createWhisperGroup, addWhisperMember, removeWhisperMember, dissolveWhisperGroup } = usePresence()
-const { getWhisperRoom, setMainMicEnabled } = useLiveKit()
+const { getWhisperRoom } = useLiveKit()
 
-const createGroupId = ref('')
 const createName = ref('')
+const dragOverGroup = ref<string | null>(null)
 const createVisibility = ref<'hidden' | 'existence' | 'full'>('hidden')
 const createError = ref('')
-const capturingFor = ref<string | null>(null)
-const transmitModes = ref<Record<string, string>>({})
-const pttBindings = ref<Record<string, string | null>>({})
-const addMemberInput = ref<Record<string, string>>({})
+const openMicGroups = ref<Record<string, boolean>>({})
 
 const AV_COLORS = [
   '#e8722e', '#23c97d', '#5750d6', '#d6457f', '#3a86c8',
@@ -182,23 +151,36 @@ function initials(name: string): string {
 }
 
 function isSpeaking(groupId: string, userId: string): boolean {
-  return (whisperStore.speakers.get(groupId) ?? []).includes(userId)
+  const lower = userId.toLowerCase()
+  return (whisperStore.speakers.get(groupId) ?? []).some(id => id.toLowerCase() === lower)
+}
+
+function isTransmitting(groupId: string): boolean {
+  if (!openMicGroups.value[groupId]) return false
+  const myId = authStore.userId?.toLowerCase()
+  return !!myId && (whisperStore.speakers.get(groupId) ?? []).some(id => id.toLowerCase() === myId)
+}
+
+function displayName(userId: string): string {
+  return roomStore.participants.find(p => p.userId === userId)?.displayName ?? userId
 }
 
 function handleCreate(): void {
   createError.value = ''
-  if (!/^[a-zA-Z0-9-]+$/.test(createGroupId.value)) {
-    createError.value = 'ID: alphanumeric and hyphens only'
-    return
-  }
   if (!createName.value.trim()) {
     createError.value = 'Name required'
     return
   }
-  createWhisperGroup(createGroupId.value.trim(), createName.value.trim(), createVisibility.value)
+  createWhisperGroup(createName.value.trim(), createVisibility.value)
     .catch(e => { createError.value = String(e) })
-  createGroupId.value = ''
   createName.value = ''
+}
+
+function onDrop(e: DragEvent, groupId: string): void {
+  dragOverGroup.value = null
+  const userId = e.dataTransfer?.getData('text/plain')
+  if (!userId) return
+  addWhisperMember(groupId, userId).catch(err => { createError.value = String(err) })
 }
 
 function handleDissolve(groupId: string): void {
@@ -206,86 +188,29 @@ function handleDissolve(groupId: string): void {
   dissolveWhisperGroup(groupId)
 }
 
-function handleAddMember(groupId: string): void {
-  const userId = (addMemberInput.value[groupId] ?? '').trim()
-  if (!userId) return
-  addWhisperMember(groupId, userId).catch(e => { createError.value = String(e) })
-  addMemberInput.value[groupId] = ''
-}
-
 function handleRemoveMember(groupId: string, userId: string): void {
   removeWhisperMember(groupId, userId).catch(e => { createError.value = String(e) })
 }
 
-async function handleTransmitChange(groupId: string, mode: string): Promise<void> {
-  transmitModes.value[groupId] = mode
-  window.pulseApi.setWhisperTransmitMode(groupId, mode)
+async function handleOpenMicChange(groupId: string, enabled: boolean): Promise<void> {
+  openMicGroups.value[groupId] = enabled
+  window.pulseApi.setWhisperOpenMic(groupId, enabled)
   const whisperRoom = getWhisperRoom(groupId)
-  if (mode === 'whisperOnly') {
-    await setMainMicEnabled(false)
-    await whisperRoom?.localParticipant?.setMicrophoneEnabled(true)
-  } else if (mode === 'both') {
-    await setMainMicEnabled(true)
-    await whisperRoom?.localParticipant?.setMicrophoneEnabled(true)
-  } else if (mode === 'ptt') {
-    await setMainMicEnabled(true)
-    await whisperRoom?.localParticipant?.setMicrophoneEnabled(false)
-  }
+  await whisperRoom?.localParticipant?.setMicrophoneEnabled(enabled)
 }
 
-function handleKeyCapture(groupId: string, code: string): void {
-  const accelerator = codeToAccelerator(code)
-  if (!accelerator) return
-  window.pulseApi.setWhisperPttKey(groupId, accelerator).then(ok => {
-    if (ok) pttBindings.value[groupId] = accelerator
-    else createError.value = 'Key not bindable (unmappable key)'
-  })
-  capturingFor.value = null
+function loadGroupSettings(groupId: string): void {
+  window.pulseApi.getWhisperOpenMic(groupId).then(v => { openMicGroups.value[groupId] = v })
 }
 
-function clearPttKey(groupId: string): void {
-  window.pulseApi.setWhisperPttKey(groupId, null)
-  pttBindings.value[groupId] = null
-}
+onMounted(() => {
+  for (const group of whisperStore.groups) loadGroupSettings(group.groupId)
 
-function onCaptureKeydown(e: KeyboardEvent): void {
-  if (!capturingFor.value || e.repeat) return
-  e.preventDefault()
-  handleKeyCapture(capturingFor.value, e.code)
-}
-
-onMounted(async () => {
-  for (const group of whisperStore.groups) {
-    window.pulseApi.getWhisperTransmitMode(group.groupId).then(m => {
-      transmitModes.value[group.groupId] = m
-    })
-    window.pulseApi.getWhisperPttKey(group.groupId).then(k => {
-      pttBindings.value[group.groupId] = k
-    })
-  }
-  window.addEventListener('keydown', onCaptureKeydown)
-
-  window.pulseApi.onWhisperPttKeyDown(async (groupId: string) => {
-    const whisperRoom = getWhisperRoom(groupId)
-    const mode = transmitModes.value[groupId] ?? 'both'
-    if (mode !== 'ptt') return
-    await whisperRoom?.localParticipant?.setMicrophoneEnabled(true)
-    const suppressMain = await window.pulseApi.getWhisperSuppressMain(groupId)
-    if (suppressMain) await setMainMicEnabled(false)
-  })
-
-  window.pulseApi.onWhisperPttKeyUp(async (groupId: string) => {
-    const whisperRoom = getWhisperRoom(groupId)
-    const mode = transmitModes.value[groupId] ?? 'both'
-    if (mode !== 'ptt') return
-    await whisperRoom?.localParticipant?.setMicrophoneEnabled(false)
-    await setMainMicEnabled(true)
-  })
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', onCaptureKeydown)
-  window.pulseApi.removeWhisperPttListeners()
+  watch(() => whisperStore.groups, (groups) => {
+    for (const group of groups) {
+      if (openMicGroups.value[group.groupId] === undefined) loadGroupSettings(group.groupId)
+    }
+  }, { deep: true })
 })
 </script>
 
@@ -366,7 +291,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 0;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: background 0.1s;
+}
+.wc-member.speaking {
+  background: var(--voice-soft);
 }
 .wc-av-wrap {
   position: relative;
@@ -409,38 +339,38 @@ onUnmounted(() => {
 .wc-transmit {
   margin-top: 4px;
 }
-.wc-transmit select {
-  width: 100%;
-  background: var(--c-bg);
-  border: 1px solid var(--c-border-2);
-  border-radius: var(--radius-sm);
-  color: var(--c-ink);
-  font-size: 12px;
-  padding: 3px 6px;
-  font-family: inherit;
-}
-.wc-ptt-row {
+.wc-open-mic-label {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--c-ink-4);
-}
-.wc-key-display {
-  flex: 1 1 auto;
-  font-size: 11px;
-  font-family: monospace;
-  background: var(--c-side-2);
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-sm);
-  padding: 2px 6px;
+  font-size: 12px;
+  color: var(--c-ink-3);
   cursor: pointer;
-  color: var(--c-ink-4);
+  user-select: none;
 }
-.wc-key-display.capturing {
+.wc-open-mic-label input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.whisper-card.is-transmitting {
+  border-color: var(--live);
+  box-shadow: 0 0 0 2px rgba(240, 71, 71, 0.25);
+}
+.wc-tx-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--live);
+  flex: 0 0 auto;
+  animation: tx-pulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes tx-pulse {
+  from { opacity: 1; }
+  to { opacity: 0.4; }
+}
+.whisper-card.drag-over {
   border-color: var(--accent);
-  color: var(--accent);
+  background: rgba(99, 102, 241, 0.1);
 }
 .wc-create {
   padding: 8px 10px;
@@ -516,30 +446,4 @@ onUnmounted(() => {
   justify-content: center;
 }
 .wc-remove-btn:hover { color: var(--live); }
-.wc-add-member {
-  display: flex;
-  gap: 4px;
-  margin-top: 2px;
-}
-.wc-add-member input {
-  flex: 1 1 auto;
-  background: var(--c-bg);
-  border: 1px solid var(--c-border-2);
-  border-radius: var(--radius-sm);
-  color: var(--c-ink);
-  font-size: 11px;
-  padding: 3px 6px;
-  font-family: inherit;
-}
-.wc-add-btn {
-  font-size: 11px;
-  padding: 2px 8px;
-  border: 1px solid var(--c-border);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--c-ink-4);
-  cursor: pointer;
-  font-family: inherit;
-}
-.wc-add-btn:hover { color: var(--accent); border-color: var(--accent); }
 </style>

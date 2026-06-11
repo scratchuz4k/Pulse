@@ -1,5 +1,6 @@
 import { ref } from 'vue'
-import { Room, RoomEvent, Track } from 'livekit-client'
+import { Room, RoomEvent, ParticipantEvent, Track } from 'livekit-client'
+import { useWhisperStore } from '../stores/whisper'
 
 export interface AudioDevice {
   deviceId: string
@@ -11,7 +12,6 @@ const whisperRooms = new Map<string, Room>()
 const isConnected = ref(false)
 const isMicEnabled = ref(false)
 const activeSpeakers = ref<string[]>([])
-const whisperActiveSpeakers = ref<Map<string, string[]>>(new Map())
 const inputDevices = ref<AudioDevice[]>([])
 const outputDevices = ref<AudioDevice[]>([])
 const activeInputId = ref<string>('')
@@ -194,21 +194,51 @@ export function useLiveKit() {
 
     room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
       const identities = speakers.map(s => s.identity)
-      const updated = new Map(whisperActiveSpeakers.value)
-      updated.set(groupId, identities)
-      whisperActiveSpeakers.value = updated
+      const localId = room.localParticipant.identity
+      if (room.localParticipant.isSpeaking && !identities.includes(localId)) {
+        identities.push(localId)
+      }
+      useWhisperStore().setSpeakers(groupId, identities)
     })
 
+    room.localParticipant.on(ParticipantEvent.IsSpeakingChanged, (speaking: boolean) => {
+      const localId = room.localParticipant.identity
+      const store = useWhisperStore()
+      const current = store.speakers.get(groupId) ?? []
+      store.setSpeakers(groupId, speaking
+        ? current.includes(localId) ? current : [...current, localId]
+        : current.filter(id => id !== localId)
+      )
+    })
+
+    let speakingPoller: ReturnType<typeof setInterval> | null = null
+
     room.on(RoomEvent.Disconnected, () => {
+      if (speakingPoller) clearInterval(speakingPoller)
       whisperRooms.delete(groupId)
-      const updated = new Map(whisperActiveSpeakers.value)
-      updated.delete(groupId)
-      whisperActiveSpeakers.value = updated
+      useWhisperStore().clearSpeakers(groupId)
       document.querySelectorAll<HTMLAudioElement>(`audio[id^="whisper-audio-${groupId}-"]`).forEach(el => el.remove())
     })
 
     await room.connect(host, token)
     await room.startAudio()
+    // mic starts disabled — caller sets it based on open mic setting
+
+    // Poll local speaking state as fallback when IsSpeakingChanged doesn't fire
+    speakingPoller = setInterval(() => {
+      const localId = room.localParticipant.identity
+      const speaking = room.localParticipant.isSpeaking
+      const store = useWhisperStore()
+      const current = store.speakers.get(groupId) ?? []
+      const inList = current.some(id => id.toLowerCase() === localId.toLowerCase())
+      if (speaking !== inList) {
+        store.setSpeakers(groupId, speaking
+          ? [...current, localId]
+          : current.filter(id => id.toLowerCase() !== localId.toLowerCase())
+        )
+      }
+    }, 80)
+
     whisperRooms.set(groupId, room)
     console.log(`[LiveKit] whisper room connected: ${groupId}`)
   }
@@ -218,9 +248,7 @@ export function useLiveKit() {
     if (!room) return
     await room.disconnect()
     whisperRooms.delete(groupId)
-    const updated = new Map(whisperActiveSpeakers.value)
-    updated.delete(groupId)
-    whisperActiveSpeakers.value = updated
+    useWhisperStore().clearSpeakers(groupId)
     document.querySelectorAll<HTMLAudioElement>(`audio[id^="whisper-audio-${groupId}-"]`).forEach(el => el.remove())
   }
 
@@ -234,12 +262,31 @@ export function useLiveKit() {
     isMicEnabled.value = enabled
   }
 
+  // Mute/unmute whisper mics — respects per-group open mic setting on unmute
+  async function applyMuteToWhisperRooms(muted: boolean): Promise<void> {
+    for (const [groupId, room] of whisperRooms) {
+      if (muted) {
+        await room.localParticipant.setMicrophoneEnabled(false)
+      } else {
+        const openMic = await window.pulseApi.getWhisperOpenMic(groupId)
+        if (openMic) await room.localParticipant.setMicrophoneEnabled(true)
+      }
+    }
+  }
+
+  // Silence/restore all whisper audio output
+  function applyDeafenToWhisperRooms(deafened: boolean): void {
+    document.querySelectorAll<HTMLAudioElement>('audio[id^="whisper-audio-"]').forEach(el => {
+      el.volume = deafened ? 0 : 1
+    })
+  }
+
   return {
     connect, disconnect, toggleMic, switchInput, switchOutput,
     isConnected, isMicEnabled, activeSpeakers,
     inputDevices, outputDevices, activeInputId, activeOutputId,
     prioritySpeakerId, setPrioritySpeaker,
     connectWhisper, disconnectWhisper, getWhisperRoom, setMainMicEnabled,
-    whisperActiveSpeakers,
+    applyMuteToWhisperRooms, applyDeafenToWhisperRooms,
   }
 }

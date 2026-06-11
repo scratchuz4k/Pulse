@@ -11,6 +11,17 @@ let hubConnection: signalR.HubConnection | null = null
 let lastServerUrl: string | null = null
 const connectionState = ref<ConnectionState>('disconnected')
 
+async function applyWhisperOpenMic(
+  groupId: string,
+  getWhisperRoom: ReturnType<typeof useLiveKit>['getWhisperRoom']
+): Promise<void> {
+  const openMic = await window.pulseApi.getWhisperOpenMic(groupId)
+  if (openMic) {
+    const room = getWhisperRoom(groupId)
+    await room?.localParticipant?.setMicrophoneEnabled(true)
+  }
+}
+
 export function usePresence() {
   const authStore = useAuthStore()
   const roomStore = useRoomStore()
@@ -81,26 +92,28 @@ export function usePresence() {
     hubConnection.on('JoinWhisperGroups', async (tokenList: Array<{
       groupId: string; groupName: string; liveKitToken: string; liveKitHost: string
     }>) => {
-      const { connectWhisper } = useLiveKit()
+      const { connectWhisper, getWhisperRoom } = useLiveKit()
       for (const entry of tokenList) {
         await connectWhisper(entry.groupId, entry.liveKitToken, entry.liveKitHost)
+        await applyWhisperOpenMic(entry.groupId, getWhisperRoom)
       }
-      console.log('[usePresence] JoinWhisperGroups: connected to', tokenList.length, 'whisper rooms')
     })
 
     hubConnection.on('WhisperGroupMemberAdded', async (payload: {
       groupId: string; groupName: string; liveKitToken: string; liveKitHost: string
     }) => {
-      const { connectWhisper } = useLiveKit()
+      const { connectWhisper, getWhisperRoom } = useLiveKit()
       await connectWhisper(payload.groupId, payload.liveKitToken, payload.liveKitHost)
-      console.log('[usePresence] WhisperGroupMemberAdded:', payload.groupId)
+      await applyWhisperOpenMic(payload.groupId, getWhisperRoom)
     })
 
     hubConnection.on('WhisperGroupMemberRemoved', async (payload: { groupId: string }) => {
       const { disconnectWhisper } = useLiveKit()
       const whisperStore = useWhisperStore()
       await disconnectWhisper(payload.groupId)
-      whisperStore.removeGroup(payload.groupId)
+      if (!whisperStore.isAdmin) {
+        whisperStore.removeGroup(payload.groupId)
+      }
       console.log('[usePresence] WhisperGroupMemberRemoved:', payload.groupId)
     })
 
@@ -117,17 +130,11 @@ export function usePresence() {
       whisperStore.setGroups(groupList)
     })
 
-    const { whisperActiveSpeakers } = useLiveKit()
-    watch(
-      whisperActiveSpeakers,
-      (map) => {
-        const whisperStore = useWhisperStore()
-        map.forEach((speakerIds, groupId) => {
-          whisperStore.setSpeakers(groupId, speakerIds)
-        })
-      },
-      { deep: true }
-    )
+    hubConnection.on('YouAreAdmin', () => {
+      const whisperStore = useWhisperStore()
+      whisperStore.setIsAdmin(true)
+    })
+
 
     hubConnection.onreconnecting(() => {
       connectionState.value = 'connecting'
@@ -228,9 +235,9 @@ export function usePresence() {
     roomStore.setRoomList(list)
   }
 
-  async function createWhisperGroup(groupId: string, name: string, visibility: string): Promise<void> {
+  async function createWhisperGroup(name: string, visibility: string): Promise<void> {
     if (!hubConnection) return
-    await hubConnection.invoke('CreateWhisperGroup', groupId, name, visibility)
+    await hubConnection.invoke('CreateWhisperGroup', name, visibility)
   }
 
   async function addWhisperMember(groupId: string, targetUserId: string): Promise<void> {

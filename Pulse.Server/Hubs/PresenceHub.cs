@@ -59,7 +59,7 @@ public class PresenceHub : Hub
                            ?? Context.User?.FindFirst("sub")?.Value;
         var adminUserId = _configuration["Pulse:AdminUserId"]
                           ?? Environment.GetEnvironmentVariable("PULSE_ADMIN_USER_ID");
-        return !string.IsNullOrEmpty(callerUserId) && callerUserId == adminUserId;
+        return !string.IsNullOrEmpty(callerUserId) && string.Equals(callerUserId, adminUserId, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── Connection lifecycle ─────────────────────────────────────────────────
@@ -85,6 +85,10 @@ public class PresenceHub : Hub
             }).ToList();
             await Clients.Caller.SendAsync("JoinWhisperGroups", tokens);
         }
+        if (IsServerAdmin())
+            await Clients.Caller.SendAsync("YouAreAdmin");
+        var visibleGroups = BuildVisibleGroupsForUser(userId);
+        await Clients.Caller.SendAsync("WhisperGroupsUpdated", visibleGroups);
         await base.OnConnectedAsync();
     }
 
@@ -236,15 +240,32 @@ public class PresenceHub : Hub
 
     // ── Whisper group methods ────────────────────────────────────────────────
 
-    public async Task CreateWhisperGroup(string groupId, string name, string visibility)
+    public async Task CreateWhisperGroup(string name, string visibility)
     {
         if (!IsServerAdmin()) return;
         if (visibility != "hidden" && visibility != "existence" && visibility != "full") return;
-        if (!Regex.IsMatch(groupId, @"^[a-zA-Z0-9-]+$")) return;
+        var adminUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                          ?? Context.User?.FindFirst("sub")?.Value ?? "";
+        var groupId = Guid.NewGuid().ToString("N")[..8];
         var liveKitRoomName = $"whisper-{groupId}";
-        var group = new WhisperGroup(groupId, name, visibility, new ConcurrentBag<string>(), liveKitRoomName);
-        if (!_whisperGroups.TryAdd(groupId, group)) return;
+        var members = new ConcurrentBag<string>();
+        if (!string.IsNullOrEmpty(adminUserId)) members.Add(adminUserId);
+        var group = new WhisperGroup(groupId, name, visibility, members, liveKitRoomName);
+        _whisperGroups[groupId] = group;
+        if (!string.IsNullOrEmpty(adminUserId))
+            _userToWhisperGroups.GetOrAdd(adminUserId, _ => new()).Add(groupId);
         await BroadcastWhisperGroupsAsync();
+        if (!string.IsNullOrEmpty(adminUserId) && _userToConnection.TryGetValue(adminUserId, out var adminConnId))
+        {
+            var token = _liveKitService.GenerateRoomToken(liveKitRoomName, adminUserId, adminUserId);
+            await Clients.Client(adminConnId).SendAsync("WhisperGroupMemberAdded", new
+            {
+                groupId,
+                groupName = name,
+                liveKitToken = token,
+                liveKitHost = _liveKitService.GetLiveKitHost()
+            });
+        }
     }
 
     public async Task AddWhisperMember(string groupId, string targetUserId)
@@ -323,49 +344,58 @@ public class PresenceHub : Hub
         await BroadcastRoomListAsync();
     }
 
+    private List<object> BuildVisibleGroupsForUser(string userId)
+    {
+        var adminUserId = _configuration["Pulse:AdminUserId"]
+                          ?? Environment.GetEnvironmentVariable("PULSE_ADMIN_USER_ID");
+        var isAdmin = string.Equals(userId, adminUserId, StringComparison.OrdinalIgnoreCase);
+        var visibleGroups = new List<object>();
+        foreach (var g in _whisperGroups.Values)
+        {
+            var isMember = g.MemberUserIds.Contains(userId);
+            if (g.Visibility == "hidden" && !isMember && !isAdmin) continue;
+            if (isMember || isAdmin)
+            {
+                visibleGroups.Add(new
+                {
+                    groupId = g.GroupId,
+                    name = g.Name,
+                    visibility = g.Visibility,
+                    isMember,
+                    memberUserIds = g.MemberUserIds.ToArray()
+                });
+            }
+            else if (g.Visibility == "existence")
+            {
+                visibleGroups.Add(new
+                {
+                    groupId = g.GroupId,
+                    name = g.Name,
+                    visibility = g.Visibility,
+                    isMember = false,
+                    memberCount = g.MemberUserIds.Count
+                });
+            }
+            else // full
+            {
+                visibleGroups.Add(new
+                {
+                    groupId = g.GroupId,
+                    name = g.Name,
+                    visibility = g.Visibility,
+                    isMember = false,
+                    memberUserIds = g.MemberUserIds.ToArray()
+                });
+            }
+        }
+        return visibleGroups;
+    }
+
     private async Task BroadcastWhisperGroupsAsync()
     {
         foreach (var (userId, connId) in _userToConnection)
         {
-            var visibleGroups = new List<object>();
-            foreach (var g in _whisperGroups.Values)
-            {
-                var isMember = g.MemberUserIds.Contains(userId);
-                if (g.Visibility == "hidden" && !isMember) continue;
-                if (isMember)
-                {
-                    visibleGroups.Add(new
-                    {
-                        groupId = g.GroupId,
-                        name = g.Name,
-                        visibility = g.Visibility,
-                        isMember = true,
-                        memberUserIds = g.MemberUserIds.ToArray()
-                    });
-                }
-                else if (g.Visibility == "existence")
-                {
-                    visibleGroups.Add(new
-                    {
-                        groupId = g.GroupId,
-                        name = g.Name,
-                        visibility = g.Visibility,
-                        isMember = false,
-                        memberCount = g.MemberUserIds.Count
-                    });
-                }
-                else // full
-                {
-                    visibleGroups.Add(new
-                    {
-                        groupId = g.GroupId,
-                        name = g.Name,
-                        visibility = g.Visibility,
-                        isMember = false,
-                        memberUserIds = g.MemberUserIds.ToArray()
-                    });
-                }
-            }
+            var visibleGroups = BuildVisibleGroupsForUser(userId);
             await Clients.Client(connId).SendAsync("WhisperGroupsUpdated", visibleGroups);
         }
     }

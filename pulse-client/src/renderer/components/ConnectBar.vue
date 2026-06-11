@@ -56,9 +56,8 @@
                 :class="{ capturing: isCapturing }"
                 tabindex="0"
                 @click="startCapture"
-                @keydown="handleCaptureKeydown"
               >
-                {{ isCapturing ? "Press a key…" : (pttBinding?.accelerator ?? "Click to bind") }}
+                {{ isCapturing ? "Press a key…" : (pttBinding?.label ?? "Click to bind") }}
               </kbd>
             </div>
           </label>
@@ -169,7 +168,7 @@ import { useRoomStore } from "../stores/room";
 import { useAuth } from "../composables/useAuth";
 import { usePresence } from "../composables/usePresence";
 import { useLiveKit } from "../composables/useLiveKit";
-import { usePtt, codeToAccelerator } from "../composables/usePtt";
+import { usePtt } from "../composables/usePtt";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -187,10 +186,10 @@ const {
   outputDevices,
   activeInputId,
   activeOutputId,
+  applyMuteToWhisperRooms,
+  applyDeafenToWhisperRooms,
 } = useLiveKit();
-const { isPttMode, pttBinding, isCapturing, startCapture, handleCaptureKeydown } = usePtt();
-
-void codeToAccelerator;
+const { isPttMode, pttBinding, isCapturing, startCapture } = usePtt();
 
 const showSettings = ref(false);
 const isDeafened = ref(false);
@@ -213,6 +212,7 @@ function initials(name: string): string {
 async function handleToggleMic(): Promise<void> {
   if (isDeafened.value) return;
   await toggleMic();
+  await applyMuteToWhisperRooms(!isMicEnabled.value);
   await broadcastMuteChanged(!isMicEnabled.value);
 }
 
@@ -221,13 +221,17 @@ async function handleToggleDeafen(): Promise<void> {
     prevMicEnabled.value = isMicEnabled.value;
     isDeafened.value = true;
     document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach((el) => { el.volume = 0; });
+    applyDeafenToWhisperRooms(true);
     if (isMicEnabled.value) await toggleMic();
+    await applyMuteToWhisperRooms(true);
     await broadcastMuteChanged(true);
     await broadcastDeafenChanged(true);
   } else {
     isDeafened.value = false;
     document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach((el) => { el.volume = 1; });
+    applyDeafenToWhisperRooms(false);
     if (prevMicEnabled.value && !isMicEnabled.value) await toggleMic();
+    await applyMuteToWhisperRooms(false);
     await broadcastMuteChanged(!prevMicEnabled.value);
     await broadcastDeafenChanged(false);
   }

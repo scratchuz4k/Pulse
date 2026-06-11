@@ -22,122 +22,69 @@
             </button>
           </div>
           <div class="feed-scroll">
-            <!-- Active room card -->
-            <div v-if="roomStore.currentRoomName" class="room-card active-card">
-              <div class="card-row card-head">
-                <span class="type-chip voice-chip">🎙 VOICE</span>
-                <span class="you-here-chip">you're here</span>
-                <span class="card-name">{{ roomStore.currentRoomName }}</span>
-                <span class="flames">🔥🔥🔥</span>
+            <!-- Active room -->
+            <div v-if="roomStore.currentRoomName" class="ch-group">
+              <div class="ch-group-header" @click="activeExpanded = !activeExpanded">
+                <svg class="ch-chevron" :class="{ expanded: activeExpanded }" viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5l3 3 3-3"/></svg>
+                <span class="ch-group-name">{{ roomStore.currentRoomName }}</span>
+                <span class="you-here-chip">here</span>
+                <span class="ch-count">{{ roomStore.participants.length }}/12</span>
               </div>
-              <div class="card-row card-people">
-                <div class="av-stack">
-                  <span
-                    v-for="p in roomStore.participants.slice(0, 5)"
-                    :key="p.connectionId"
-                    class="av-sm"
-                    :style="{ background: avatarColor(p.displayName) }"
-                  >
-                    {{ initials(p.displayName) }}
-                  </span>
-                  <span
-                    v-if="roomStore.participants.length > 5"
-                    class="av-sm av-more"
-                  >
-                    +{{ roomStore.participants.length - 5 }}
-                  </span>
-                </div>
-                <span class="card-meta">
-                  {{ roomStore.participants.length }} / 12
-                </span>
-              </div>
-              <div class="heat-bar">
+              <div v-if="activeExpanded" class="ch-members">
                 <div
-                  class="heat-fill"
-                  :style="{
-                    width:
-                      Math.min(100, roomStore.participants.length * 12) + '%',
-                  }"
-                />
-              </div>
-            </div>
-
-            <!-- Join form card -->
-            <div
-              v-if="showJoinForm || !roomStore.currentRoomName"
-              class="join-card"
-            >
-              <div class="join-card-label">Join or create a room</div>
-              <div class="join-row">
-                <input
-                  v-model="roomNameInput"
-                  class="room-input"
-                  type="text"
-                  placeholder="Room name…"
-                  @keydown.enter="handleJoin"
-                />
-                <button
-                  class="jump-btn"
-                  :disabled="joining || !roomNameInput.trim()"
-                  @click="handleJoin"
+                  v-for="p in roomStore.participants"
+                  :key="p.connectionId"
+                  class="ch-member"
+                  :class="{ speaking: activeSpeakers.includes(p.userId) }"
+                  draggable="true"
+                  @dragstart="onParticipantDragStart($event, p.userId)"
                 >
-                  {{ joining ? "…" : "Jump in ▸" }}
-                </button>
+                  <div class="ch-av-wrap">
+                    <span class="ch-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
+                    <span v-if="activeSpeakers.includes(p.userId)" class="ch-speaking-ring" />
+                  </div>
+                  <span class="ch-name">{{ p.displayName }}</span>
+                  <svg class="ch-drag-icon" viewBox="0 0 16 16" width="10" height="10" fill="currentColor">
+                    <circle cx="5" cy="4" r="1.2"/><circle cx="11" cy="4" r="1.2"/>
+                    <circle cx="5" cy="8" r="1.2"/><circle cx="11" cy="8" r="1.2"/>
+                    <circle cx="5" cy="12" r="1.2"/><circle cx="11" cy="12" r="1.2"/>
+                  </svg>
+                </div>
               </div>
-              <div v-if="joinError" class="join-error">{{ joinError }}</div>
             </div>
 
             <!-- Other rooms -->
             <template v-for="room in roomStore.rooms" :key="room.id">
               <div
-                v-if="
-                  room.name !== roomStore.currentRoomName &&
-                  room.participants.length > 0
-                "
-                class="room-card joinable"
-                @click="handleJoinRoom(room.name)"
+                v-if="room.name !== roomStore.currentRoomName && room.participants.length > 0"
+                class="ch-group"
               >
-                <div class="card-row card-head">
-                  <span class="type-chip voice-chip">🎙 VOICE</span>
-                  <span class="card-name">{{ room.name }}</span>
+                <div class="ch-group-header" @click="toggleRoom(room.name)">
+                  <svg class="ch-chevron" :class="{ expanded: expandedRooms.has(room.name) }" viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5l3 3 3-3"/></svg>
+                  <span class="ch-group-name">{{ room.name }}</span>
+                  <span class="ch-count">{{ room.participants.length }}</span>
+                  <button class="ch-join-btn" :disabled="joining" @click.stop="handleJoinRoom(room.name)">Join ▸</button>
                 </div>
-                <div class="card-row card-people">
-                  <div class="av-stack">
-                    <span
-                      v-for="p in room.participants.slice(0, 5)"
-                      :key="p.userId"
-                      class="av-sm"
-                      :style="{ background: avatarColor(p.displayName) }"
-                    >
-                      {{ initials(p.displayName) }}
-                    </span>
-                    <span
-                      v-if="room.participants.length > 5"
-                      class="av-sm av-more"
-                    >
-                      +{{ room.participants.length - 5 }}
-                    </span>
+                <div v-if="expandedRooms.has(room.name)" class="ch-members">
+                  <div v-for="p in room.participants" :key="p.userId" class="ch-member">
+                    <span class="ch-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
+                    <span class="ch-name">{{ p.displayName }}</span>
                   </div>
-                  <span class="card-meta">
-                    {{ room.participants.length }} in room
-                  </span>
-                </div>
-                <div class="card-row">
-                  <button
-                    class="jump-btn"
-                    :disabled="joining"
-                    @click.stop="handleJoinRoom(room.name)"
-                  >
-                    Join ▸
-                  </button>
                 </div>
               </div>
             </template>
 
-            <div
-              v-if="roomStore.rooms.length === 0 && !roomStore.currentRoomName"
-              class="empty-card"
-            >
+            <!-- Join form -->
+            <div v-if="showJoinForm || !roomStore.currentRoomName" class="join-card">
+              <div class="join-card-label">Join or create a room</div>
+              <div class="join-row">
+                <input v-model="roomNameInput" class="room-input" type="text" placeholder="Room name…" @keydown.enter="handleJoin" />
+                <button class="jump-btn" :disabled="joining || !roomNameInput.trim()" @click="handleJoin">{{ joining ? "…" : "Jump in ▸" }}</button>
+              </div>
+              <div v-if="joinError" class="join-error">{{ joinError }}</div>
+            </div>
+
+            <div v-if="roomStore.rooms.length === 0 && !roomStore.currentRoomName" class="empty-card">
               <p>No voice rooms yet.</p>
             </div>
           </div>
@@ -146,24 +93,7 @@
         <!-- Resizable sidebar -->
         <div class="side-resizer" @mousedown="startResize" />
         <div class="side-tabs" :style="{ width: sideWidth + 'px', flex: `0 0 ${sideWidth}px` }">
-          <div class="side-tab-bar">
-            <button
-              class="side-tab-btn"
-              :class="{ active: sideTab === 'participants' }"
-              @click="sideTab = 'participants'"
-            >Participants</button>
-            <button
-              class="side-tab-btn"
-              :class="{ active: sideTab === 'whisper' }"
-              @click="sideTab = 'whisper'"
-            >Whisper</button>
-          </div>
-          <ParticipantPanel
-            v-if="sideTab === 'participants'"
-            :active-speakers="activeSpeakers"
-            @toggle-priority-speaker="togglePrioritySpeaker"
-          />
-          <WhisperPanel v-else />
+          <WhisperPanel />
         </div>
       </div>
     </div>
@@ -172,13 +102,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from "vue";
-import ParticipantPanel from "../components/ParticipantPanel.vue";
 import WhisperPanel from "../components/WhisperPanel.vue";
 import { useRoomStore } from "../stores/room";
 import { useAuth } from "../composables/useAuth";
 import { usePresence } from "../composables/usePresence";
 import { useLiveKit } from "../composables/useLiveKit";
-import { usePtt, codeToAccelerator } from "../composables/usePtt";
+import { usePtt } from "../composables/usePtt";
 
 const roomStore = useRoomStore();
 const { fetchLiveKitToken } = useAuth();
@@ -196,12 +125,18 @@ const {
   isMicEnabled,
   activeSpeakers,
 } = useLiveKit();
-const { isPttMode, pttBinding } = usePtt();
+const { isPttMode } = usePtt();
 
 const roomNameInput = ref("");
 const joining = ref(false);
-const sideTab = ref<'participants' | 'whisper'>('participants');
 const sideWidth = ref(320);
+const activeExpanded = ref(true);
+const expandedRooms = ref(new Set<string>());
+
+function toggleRoom(name: string): void {
+  if (expandedRooms.value.has(name)) expandedRooms.value.delete(name);
+  else expandedRooms.value.add(name);
+}
 
 function startResize(e: MouseEvent): void {
   e.preventDefault();
@@ -245,6 +180,11 @@ function initials(name: string): string {
   return (p[0][0] + (p[1] ? p[1][0] : "")).toUpperCase();
 }
 
+function onParticipantDragStart(e: DragEvent, userId: string): void {
+  e.dataTransfer?.setData('text/plain', userId)
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'copy'
+}
+
 function togglePrioritySpeaker(userId: string): void {
   if (!roomStore.currentRoomName) return;
   if (roomStore.prioritySpeakerId === userId) {
@@ -261,20 +201,7 @@ async function setMicEnabled(v: boolean): Promise<void> {
   }
 }
 
-function handlePttKeydown(e: KeyboardEvent): void {
-  if (!isPttMode.value || !pttBinding.value || e.repeat) return;
-  if (codeToAccelerator(e.code) === pttBinding.value.accelerator)
-    setMicEnabled(true);
-}
-function handlePttKeyup(e: KeyboardEvent): void {
-  if (!isPttMode.value || !pttBinding.value) return;
-  if (codeToAccelerator(e.code) === pttBinding.value.accelerator)
-    setMicEnabled(false);
-}
-
 onMounted(() => {
-  window.addEventListener("keydown", handlePttKeydown);
-  window.addEventListener("keyup", handlePttKeyup);
   window.pulseApi.onPttKeyDown(() => {
     if (isPttMode.value) setMicEnabled(true);
   });
@@ -284,8 +211,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  window.removeEventListener("keydown", handlePttKeydown);
-  window.removeEventListener("keyup", handlePttKeyup);
   window.pulseApi.removePttListeners();
 });
 
@@ -401,126 +326,150 @@ void isConnected;
 .feed-scroll {
   flex: 1 1 auto;
   overflow-y: auto;
-  padding: 18px 22px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 2px;
   scrollbar-width: thin;
   scrollbar-color: var(--c-border-2) transparent;
 }
 
-.room-card {
-  border: 1.5px solid var(--c-border);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  background: var(--c-side);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: border-color 0.15s;
-}
-.room-card.active-card {
-  border-color: var(--voice);
-  background: rgba(35, 201, 125, 0.05);
-}
-.room-card.joinable {
-  cursor: pointer;
-}
-.room-card.joinable:hover {
-  border-color: var(--accent);
-}
-
-.card-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.card-head {
-  flex-wrap: nowrap;
-}
-
-.type-chip {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  border-radius: 20px;
-  padding: 2px 9px;
-  flex: 0 0 auto;
-  border: 1.5px solid currentColor;
-}
-.voice-chip {
-  color: var(--voice);
-}
-
 .you-here-chip {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--voice);
   border: 1.5px solid var(--voice);
   border-radius: 20px;
-  padding: 2px 9px;
+  padding: 1px 6px;
   flex: 0 0 auto;
 }
 
-.card-name {
+/* Channel group (collapsable room row) */
+.ch-group {
+  display: flex;
+  flex-direction: column;
+}
+.ch-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+.ch-group-header:hover {
+  background: var(--c-side-2);
+}
+.ch-chevron {
+  flex: 0 0 auto;
+  color: var(--c-ink-4);
+  transition: transform 0.15s;
+  transform: rotate(-90deg);
+}
+.ch-chevron.expanded {
+  transform: rotate(0deg);
+}
+.ch-group-name {
   flex: 1 1 auto;
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--c-ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.flames {
+.ch-count {
+  font-size: 11px;
+  color: var(--c-ink-4);
   flex: 0 0 auto;
-  font-size: 14px;
 }
-
-.av-stack {
+.ch-join-btn {
+  flex: 0 0 auto;
+  height: 22px;
+  padding: 0 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.ch-group-header:hover .ch-join-btn {
+  opacity: 1;
+}
+.ch-join-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.ch-members {
   display: flex;
+  flex-direction: column;
+  padding: 2px 0 2px 22px;
 }
-.av-sm {
-  width: 24px;
-  height: 24px;
+.ch-member {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 8px 3px 4px;
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  user-select: none;
+  transition: background 0.1s;
+}
+.ch-member:hover {
+  background: var(--c-side-2);
+}
+.ch-member:active { cursor: grabbing; }
+.ch-member.speaking { background: var(--voice-soft); }
+.ch-av-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+.ch-av {
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   color: #fff;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--c-side);
-  margin-left: -6px;
   flex: 0 0 auto;
 }
-.av-sm:first-child {
-  margin-left: 0;
+.ch-speaking-ring {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 2px solid var(--voice);
+  animation: ring-pulse 1.2s ease-in-out infinite;
 }
-.av-more {
-  background: var(--c-side-2);
-  color: var(--c-ink-4);
+@keyframes ring-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.08); }
 }
-
-.card-meta {
-  font-size: 13px;
-  color: var(--c-ink-4);
+.ch-name {
+  flex: 1 1 auto;
+  font-size: 12px;
   font-weight: 500;
-}
-
-.heat-bar {
-  height: 6px;
-  background: var(--c-side-2);
-  border-radius: 4px;
+  color: var(--c-ink-2);
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.heat-fill {
-  height: 100%;
-  background: var(--accent);
-  border-radius: 4px;
-  transition: width 0.4s ease;
+.ch-drag-icon {
+  flex: 0 0 auto;
+  color: var(--c-ink-5);
+  opacity: 0;
+  transition: opacity 0.1s;
 }
+.ch-member:hover .ch-drag-icon { opacity: 1; }
 
 .join-card {
   border: 1.5px dashed var(--c-border-2);

@@ -1,57 +1,63 @@
-import { ref, watch, onMounted, onUnmounted } from 'vue'
-
-const CODE_TO_ACCELERATOR: Record<string, string> = {
-  Space: 'Space',
-  Enter: 'Return',
-  Backspace: 'Backspace',
-  Tab: 'Tab',
-  Escape: 'Escape',
-  ArrowUp: 'Up',
-  ArrowDown: 'Down',
-  ArrowLeft: 'Left',
-  ArrowRight: 'Right',
-}
-
-export function codeToAccelerator(code: string): string {
-  if (CODE_TO_ACCELERATOR[code]) return CODE_TO_ACCELERATOR[code]
-  if (/^Key[A-Z]$/.test(code)) return code.slice(3)
-  if (/^Digit[0-9]$/.test(code)) return code.slice(5)
-  if (/^F\d+$/.test(code)) return code
-  return code
-}
+import { ref, watch, onMounted } from 'vue'
 
 export interface PttBinding {
-  accelerator: string
   label: string
 }
 
-export function usePtt() {
-  const isPttMode = ref(false)
-  const pttBinding = ref<PttBinding | null>(null)
-  const isCapturing = ref(false)
+export function codeToLabel(code: string, key: string): string {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3)
+  if (/^Digit[0-9]$/.test(code)) return code.slice(5)
+  const named: Record<string, string> = {
+    Space: 'Space', Enter: 'Enter', Escape: 'Esc', Tab: 'Tab',
+    Backspace: 'Bksp', Delete: 'Del', Insert: 'Ins',
+    ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→',
+    Home: 'Home', End: 'End', PageUp: 'PgUp', PageDown: 'PgDn',
+  }
+  if (named[code]) return named[code]
+  if (/^F\d+$/.test(code)) return code
+  if (key.length === 1) return key.toUpperCase()
+  return code
+}
 
-  onMounted(async () => {
-    const saved = await window.pulseApi.getPttKey()
-    if (saved) pttBinding.value = { accelerator: saved, label: saved }
-    const savedMode = await window.pulseApi.getPttMode()
-    isPttMode.value = savedMode
-    watch(isPttMode, (v) => { window.pulseApi.setPttMode(v) })
+// Module-level singleton — shared across ConnectBar + RoomView
+const isPttMode = ref(false)
+const pttBinding = ref<PttBinding | null>(null)
+const isCapturing = ref(false)
+let _initialized = false
+
+function onCaptureKeydown(e: KeyboardEvent): void {
+  if (!isCapturing.value) return
+  if (e.repeat) return
+  if (['Control', 'Alt', 'Shift', 'Meta', 'CapsLock'].includes(e.key)) return
+  e.preventDefault()
+  e.stopPropagation()
+  const label = codeToLabel(e.code, e.key)
+  isCapturing.value = false
+  window.pulseApi.setPttKeyByCode(e.code, label).then(ok => {
+    if (ok) pttBinding.value = { label }
+  })
+}
+
+export function usePtt() {
+  onMounted(() => {
+    if (_initialized) return
+    _initialized = true
+
+    window.pulseApi.getPttKey().then(saved => {
+      if (saved) pttBinding.value = { label: saved }
+    })
+    window.pulseApi.getPttMode().then(saved => {
+      isPttMode.value = saved
+      watch(isPttMode, (v) => { window.pulseApi.setPttMode(v) })
+    })
+
+    // Capture phase so we intercept before any other handler
+    document.addEventListener('keydown', onCaptureKeydown, true)
   })
 
-function startCapture(): void {
+  function startCapture(): void {
     isCapturing.value = true
   }
 
-  function handleCaptureKeydown(e: KeyboardEvent): void {
-    if (!isCapturing.value) return
-    e.preventDefault()
-    e.stopPropagation()
-    const accelerator = codeToAccelerator(e.code)
-    const label = e.code === 'Space' ? 'Space' : (e.key.length === 1 ? e.key.toUpperCase() : e.key)
-    pttBinding.value = { accelerator, label }
-    isCapturing.value = false
-    window.pulseApi.setPttKey(accelerator)
-  }
-
-  return { isPttMode, pttBinding, isCapturing, startCapture, handleCaptureKeydown }
+  return { isPttMode, pttBinding, isCapturing, startCapture }
 }
