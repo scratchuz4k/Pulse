@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Pulse.Server.Data;
 using Pulse.Server.Services;
 
@@ -14,13 +12,11 @@ public class PresenceHub : Hub
 {
     private readonly AppDbContext _db;
     private readonly ILiveKitService _liveKitService;
-    private readonly IConfiguration _configuration;
 
-    public PresenceHub(AppDbContext db, ILiveKitService liveKitService, IConfiguration configuration)
+    public PresenceHub(AppDbContext db, ILiveKitService liveKitService)
     {
         _db = db;
         _liveKitService = liveKitService;
-        _configuration = configuration;
     }
 
     private record ParticipantInfo(string DisplayName, string UserId, bool IsMuted = false, bool IsDeafened = false, bool IsPrioritySpeaker = false);
@@ -30,7 +26,8 @@ public class PresenceHub : Hub
         string Name,
         string Visibility,
         ConcurrentBag<string> MemberUserIds,
-        string LiveKitRoomName
+        string LiveKitRoomName,
+        int ServerId
     );
 
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ParticipantInfo>>
@@ -58,13 +55,12 @@ public class PresenceHub : Hub
 
     // ── Admin helper ─────────────────────────────────────────────────────────
 
-    private bool IsServerAdmin()
+    private async Task<bool> IsOwnerOfServer(int serverId)
     {
         var callerUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                            ?? Context.User?.FindFirst("sub")?.Value;
-        var adminUserId = _configuration["Pulse:AdminUserId"]
-                          ?? Environment.GetEnvironmentVariable("PULSE_ADMIN_USER_ID");
-        return !string.IsNullOrEmpty(callerUserId) && string.Equals(callerUserId, adminUserId, StringComparison.OrdinalIgnoreCase);
+        if (string.IsNullOrEmpty(callerUserId)) return false;
+        return await _db.Servers.AnyAsync(s => s.Id == serverId && s.OwnerId.ToString() == callerUserId);
     }
 
     // ── Connection lifecycle ─────────────────────────────────────────────────
@@ -93,9 +89,19 @@ public class PresenceHub : Hub
             }).ToList();
             await Clients.Caller.SendAsync("JoinWhisperGroups", tokens);
         }
-        if (IsServerAdmin())
-            await Clients.Caller.SendAsync("YouAreAdmin");
-        var visibleGroups = BuildVisibleGroupsForUser(userId);
+
+        // Subscribe connection to all servers the user belongs to
+        if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var userGuid))
+        {
+            var serverIds = await _db.ServerMembers
+                .Where(m => m.UserId == userGuid)
+                .Select(m => m.ServerId)
+                .ToListAsync();
+            foreach (var sid in serverIds)
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"server-{sid}");
+        }
+
+        var visibleGroups = await BuildVisibleGroupsForUser(userId);
         await Clients.Caller.SendAsync("WhisperGroupsUpdated", visibleGroups);
         await Clients.Caller.SendAsync("UsersUpdated", BuildUsersPayload());
         await Clients.Others.SendAsync("UsersUpdated", BuildUsersPayload());
@@ -114,19 +120,25 @@ public class PresenceHub : Hub
         }
 
         bool roomListChanged = false;
+        string? changedRoomServerId = null;
         foreach (var (roomName, room) in _rooms)
         {
             if (room.TryRemove(Context.ConnectionId, out _))
             {
                 await Clients.Group(roomName).SendAsync("ParticipantLeft", Context.ConnectionId);
                 if (room.IsEmpty)
-                    await DeleteRoomAndBroadcast(roomName); // already broadcasts
+                    await DeleteRoomAndBroadcast(roomName);
                 else
+                {
                     roomListChanged = true;
+                    // Track the room's server for scoped broadcast
+                    var dbRoom = await _db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
+                    if (dbRoom != null) changedRoomServerId = dbRoom.ServerId.ToString();
+                }
             }
         }
-        if (roomListChanged)
-            await BroadcastRoomListAsync();
+        if (roomListChanged && changedRoomServerId != null && int.TryParse(changedRoomServerId, out var sid))
+            await BroadcastRoomListAsync(sid);
         _connectionToRoom.TryRemove(Context.ConnectionId, out _);
         await base.OnDisconnectedAsync(exception);
     }
@@ -142,12 +154,11 @@ public class PresenceHub : Hub
     }
 
     /// <summary>Builds the enriched room list payload used in RoomListUpdated broadcasts.</summary>
-    public static IEnumerable<object> BuildRoomListPayload(IEnumerable<(int Id, string Name, Guid? CreatedByUserId)> rooms) =>
+    public static IEnumerable<object> BuildRoomListPayload(IEnumerable<(int Id, string Name)> rooms) =>
         rooms.Select(r => (object)new
         {
             id = r.Id,
             name = r.Name,
-            createdByUserId = r.CreatedByUserId,
             participants = GetRoomParticipants(r.Name)
         });
 
@@ -166,7 +177,8 @@ public class PresenceHub : Hub
         if (_prioritySpeakers.TryGetValue(roomName, out var ps))
             await Clients.Caller.SendAsync("PrioritySpeakerChanged", ps);
 
-        await BroadcastRoomListAsync();
+        var dbRoom = await _db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
+        if (dbRoom != null) await BroadcastRoomListAsync(dbRoom.ServerId);
     }
 
     public async Task LeaveRoom(string roomName)
@@ -177,7 +189,10 @@ public class PresenceHub : Hub
             if (room.IsEmpty)
                 await DeleteRoomAndBroadcast(roomName);
             else
-                await BroadcastRoomListAsync();
+            {
+                var dbRoom = await _db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
+                if (dbRoom != null) await BroadcastRoomListAsync(dbRoom.ServerId);
+            }
         }
         _connectionToRoom.TryRemove(Context.ConnectionId, out _);
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, roomName);
@@ -212,10 +227,9 @@ public class PresenceHub : Hub
 
     public async Task AssignPrioritySpeaker(string roomName, string targetUserId)
     {
-        var callerUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                           ?? Context.User?.FindFirst("sub")?.Value;
         var room = await _db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
-        if (room == null || room.CreatedByUserId?.ToString() != callerUserId) return;
+        if (room == null) return;
+        if (!await IsOwnerOfServer(room.ServerId)) return;
 
         _prioritySpeakers[roomName] = targetUserId;
 
@@ -233,10 +247,9 @@ public class PresenceHub : Hub
 
     public async Task RemovePrioritySpeaker(string roomName)
     {
-        var callerUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                           ?? Context.User?.FindFirst("sub")?.Value;
         var room = await _db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
-        if (room == null || room.CreatedByUserId?.ToString() != callerUserId) return;
+        if (room == null) return;
+        if (!await IsOwnerOfServer(room.ServerId)) return;
 
         _prioritySpeakers.TryRemove(roomName, out _);
 
@@ -254,9 +267,9 @@ public class PresenceHub : Hub
 
     // ── Whisper group methods ────────────────────────────────────────────────
 
-    public async Task CreateWhisperGroup(string name, string visibility)
+    public async Task CreateWhisperGroup(int serverId, string name, string visibility)
     {
-        if (!IsServerAdmin()) return;
+        if (!await IsOwnerOfServer(serverId)) return;
         if (visibility != "hidden" && visibility != "existence" && visibility != "full") return;
         var adminUserId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                           ?? Context.User?.FindFirst("sub")?.Value ?? "";
@@ -264,7 +277,7 @@ public class PresenceHub : Hub
         var liveKitRoomName = $"whisper-{groupId}";
         var members = new ConcurrentBag<string>();
         if (!string.IsNullOrEmpty(adminUserId)) members.Add(adminUserId);
-        var group = new WhisperGroup(groupId, name, visibility, members, liveKitRoomName);
+        var group = new WhisperGroup(groupId, name, visibility, members, liveKitRoomName, serverId);
         _whisperGroups[groupId] = group;
         if (!string.IsNullOrEmpty(adminUserId))
             _userToWhisperGroups.GetOrAdd(adminUserId, _ => new()).Add(groupId);
@@ -284,8 +297,8 @@ public class PresenceHub : Hub
 
     public async Task AddWhisperMember(string groupId, string targetUserId)
     {
-        if (!IsServerAdmin()) return;
         if (!_whisperGroups.TryGetValue(groupId, out var group)) return;
+        if (!await IsOwnerOfServer(group.ServerId)) return;
         if (group.MemberUserIds.Contains(targetUserId)) return;
         group.MemberUserIds.Add(targetUserId);
         _userToWhisperGroups.GetOrAdd(targetUserId, _ => new()).Add(groupId);
@@ -305,8 +318,8 @@ public class PresenceHub : Hub
 
     public async Task RemoveWhisperMember(string groupId, string targetUserId)
     {
-        if (!IsServerAdmin()) return;
         if (!_whisperGroups.TryGetValue(groupId, out var group)) return;
+        if (!await IsOwnerOfServer(group.ServerId)) return;
         var updated = group with { MemberUserIds = new ConcurrentBag<string>(group.MemberUserIds.Where(id => id != targetUserId)) };
         _whisperGroups[groupId] = updated;
         if (_userToWhisperGroups.TryGetValue(targetUserId, out var userGroups))
@@ -318,8 +331,8 @@ public class PresenceHub : Hub
 
     public async Task DissolveWhisperGroup(string groupId)
     {
-        if (!IsServerAdmin()) return;
         if (!_whisperGroups.TryRemove(groupId, out var group)) return;
+        if (!await IsOwnerOfServer(group.ServerId)) return;
         foreach (var memberId in group.MemberUserIds)
         {
             if (_userToWhisperGroups.TryGetValue(memberId, out var userGroups))
@@ -338,11 +351,15 @@ public class PresenceHub : Hub
     private static IEnumerable<object> BuildUsersPayload() =>
         _connectedUsers.Values.Select(u => (object)new { userId = u.UserId, displayName = u.DisplayName });
 
-    private async Task BroadcastRoomListAsync()
+    private async Task BroadcastRoomListAsync(int serverId)
     {
-        var allRooms = await _db.Rooms.OrderBy(r => r.Name).Select(r => new { r.Id, r.Name, r.CreatedByUserId }).ToListAsync();
-        var payload = BuildRoomListPayload(allRooms.Select(r => (r.Id, r.Name, r.CreatedByUserId)));
-        await Clients.All.SendAsync("RoomListUpdated", payload);
+        var allRooms = await _db.Rooms
+            .Where(r => r.ServerId == serverId)
+            .OrderBy(r => r.Name)
+            .Select(r => new { r.Id, r.Name })
+            .ToListAsync();
+        var payload = BuildRoomListPayload(allRooms.Select(r => (r.Id, r.Name)));
+        await Clients.Group($"server-{serverId}").SendAsync("RoomListUpdated", payload);
     }
 
     private async Task DeleteRoomAndBroadcast(string roomName)
@@ -351,6 +368,7 @@ public class PresenceHub : Hub
         _prioritySpeakers.TryRemove(roomName, out _);
 
         var dbRoom = await _db.Rooms.FirstOrDefaultAsync(r => r.Name == roomName);
+        int serverId = dbRoom?.ServerId ?? 0;
         if (dbRoom != null)
         {
             _db.Rooms.Remove(dbRoom);
@@ -358,18 +376,24 @@ public class PresenceHub : Hub
             catch (DbUpdateConcurrencyException) { /* already deleted */ }
         }
 
-        await BroadcastRoomListAsync();
+        if (serverId != 0)
+            await BroadcastRoomListAsync(serverId);
     }
 
-    private List<object> BuildVisibleGroupsForUser(string userId)
+    private async Task<List<object>> BuildVisibleGroupsForUser(string userId)
     {
-        var adminUserId = _configuration["Pulse:AdminUserId"]
-                          ?? Environment.GetEnvironmentVariable("PULSE_ADMIN_USER_ID");
-        var isAdmin = string.Equals(userId, adminUserId, StringComparison.OrdinalIgnoreCase);
+        var ownedServerIds = new HashSet<int>();
+        if (Guid.TryParse(userId, out var userGuid))
+            ownedServerIds = (await _db.Servers
+                .Where(s => s.OwnerId == userGuid)
+                .Select(s => s.Id)
+                .ToListAsync()).ToHashSet();
+
         var visibleGroups = new List<object>();
         foreach (var g in _whisperGroups.Values)
         {
             var isMember = g.MemberUserIds.Contains(userId);
+            var isAdmin = ownedServerIds.Contains(g.ServerId);
             if (g.Visibility == "hidden" && !isMember && !isAdmin) continue;
             if (isMember || isAdmin)
             {
@@ -412,7 +436,7 @@ public class PresenceHub : Hub
     {
         foreach (var (userId, connId) in _userToConnection)
         {
-            var visibleGroups = BuildVisibleGroupsForUser(userId);
+            var visibleGroups = await BuildVisibleGroupsForUser(userId);
             await Clients.Client(connId).SendAsync("WhisperGroupsUpdated", visibleGroups);
         }
     }
