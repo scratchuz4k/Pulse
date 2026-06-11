@@ -114,6 +114,7 @@
           :class="{ 'cb-btn--danger': !isMicEnabled || isDeafened }"
           :disabled="isDeafened"
           :title="isDeafened ? 'Muted (deafened)' : isMicEnabled ? 'Mute' : 'Unmute'"
+          tabindex="-1"
           @click="handleToggleMic"
         >
           <svg v-if="isMicEnabled" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -131,6 +132,7 @@
           class="cb-btn"
           :class="{ 'cb-btn--danger': isDeafened }"
           :title="isDeafened ? 'Undeafen' : 'Deafen'"
+          tabindex="-1"
           @click="handleToggleDeafen"
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -146,6 +148,7 @@
           v-if="isConnected"
           class="cb-btn cb-btn--leave"
           title="Leave room"
+          tabindex="-1"
           @click="handleLeave"
         >
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

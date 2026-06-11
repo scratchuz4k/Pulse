@@ -27,7 +27,6 @@ async function refreshDevices(unlockLabels: boolean = true): Promise<void> {
   if (unlockLabels) {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      console.log('[devices] getUserMedia ok, tracks:', stream.getTracks().map(t => t.label))
     } catch (e) {
       console.error('[devices] getUserMedia failed:', e)
     }
@@ -46,8 +45,6 @@ async function refreshDevices(unlockLabels: boolean = true): Promise<void> {
   outputDevices.value = devices
     .filter(d => d.kind === 'audiooutput')
     .map(d => ({ deviceId: d.deviceId, label: friendlyLabel(d, 'Speaker') }))
-  console.log('[LiveKit] input devices:', inputDevices.value.map(d => d.label))
-  console.log('[LiveKit] output devices:', outputDevices.value.map(d => d.label))
 }
 
 export function useLiveKit() {
@@ -85,7 +82,6 @@ export function useLiveKit() {
     })
 
     room.on(RoomEvent.TrackSubscribed, (track, _publication, participant) => {
-      console.log('[LiveKit] track subscribed', track.kind, participant.identity)
       if (track.kind === Track.Kind.Audio) {
         const el = track.attach() as HTMLAudioElement
         el.id = `livekit-audio-${participant.identity}`
@@ -119,7 +115,6 @@ export function useLiveKit() {
 
     await room.connect(liveKitHost, liveKitToken)
     await room.startAudio()
-    console.log('[LiveKit] connected, audio unlocked, local identity:', room.localParticipant.identity)
     mainRoom = room
     isConnected.value = true
 
@@ -129,7 +124,6 @@ export function useLiveKit() {
         echoCancellation: true,
         autoGainControl: true,
       })
-      console.log('[LiveKit] microphone', desiredMicEnabled ? 'enabled' : 'disabled')
       isMicEnabled.value = desiredMicEnabled
     } catch (err) {
       console.error('[LiveKit] failed to set microphone state:', err)
@@ -260,7 +254,6 @@ export function useLiveKit() {
     }, 500)
 
     whisperRooms.set(groupId, room)
-    console.log(`[LiveKit] whisper room connected: ${groupId}`)
   }
 
   async function disconnectWhisper(groupId: string): Promise<void> {
@@ -277,7 +270,6 @@ export function useLiveKit() {
   }
 
   async function setMainMicEnabled(enabled: boolean): Promise<void> {
-    console.log('[PTT] setMainMicEnabled', enabled, 'mainRoom:', !!mainRoom)
     if (!mainRoom) return
     try {
       await mainRoom.localParticipant.setMicrophoneEnabled(enabled, {
@@ -286,7 +278,6 @@ export function useLiveKit() {
         autoGainControl: true,
       })
       isMicEnabled.value = enabled
-      console.log('[PTT] setMainMicEnabled done, isMicEnabled:', enabled)
     } catch (err) {
       console.error('[PTT] setMainMicEnabled failed:', err)
     }

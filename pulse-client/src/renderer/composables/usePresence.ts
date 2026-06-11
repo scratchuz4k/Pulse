@@ -103,7 +103,6 @@ export function usePresence() {
       if (!useAuthStore().isAdmin) {
         whisperStore.removeGroup(payload.groupId)
       }
-      console.log('[usePresence] WhisperGroupMemberRemoved:', payload.groupId)
     })
 
     hubConnection.on('WhisperGroupDissolved', async (payload: { groupId: string }) => {
@@ -111,7 +110,6 @@ export function usePresence() {
       const whisperStore = useWhisperStore()
       await disconnectWhisper(payload.groupId)
       whisperStore.removeGroup(payload.groupId)
-      console.log('[usePresence] WhisperGroupDissolved:', payload.groupId)
     })
 
     hubConnection.on('WhisperGroupsUpdated', (groupList: WhisperGroupEntry[]) => {

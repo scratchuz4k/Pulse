@@ -7,10 +7,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
+import { useLiveKit } from "./composables/useLiveKit";
+import { usePtt } from "./composables/usePtt";
+import { usePresence } from "./composables/usePresence";
 
 const router = useRouter();
+const { setMainMicEnabled } = useLiveKit();
+const { isPttMode } = usePtt();
+const { broadcastMuteChanged } = usePresence();
+
+onMounted(() => {
+  window.pulseApi.onPttKeyDown(() => {
+    console.log("onPttKeyDown received in App.vue");
+    if (!isPttMode.value) return;
+    setMainMicEnabled(true);
+    broadcastMuteChanged(false);
+  });
+  window.pulseApi.onPttKeyUp(() => {
+    console.log("PttKeyUp received in App.vue");
+    if (!isPttMode.value) return;
+    setMainMicEnabled(false);
+    broadcastMuteChanged(true);
+  });
+});
 const prevRouteName = ref<string | null>(null);
 const currRouteName = ref<string | null>(null);
 

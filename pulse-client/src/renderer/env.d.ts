@@ -7,6 +7,7 @@ interface PulseApi {
   setPttKeyByCode: (code: string, label: string) => Promise<boolean>
 startPttCapture: () => Promise<void>
   getPttKey: () => Promise<string | null>
+  getPttDomCode: () => Promise<string | null>
   getPttMode: () => Promise<boolean>
   setPttMode: (enabled: boolean) => Promise<void>
   onPttKeyDown: (cb: () => void) => void
@@ -15,6 +16,7 @@ startPttCapture: () => Promise<void>
   removePttListeners: () => void
   setWhisperPttKeyByCode: (code: string, label: string) => Promise<boolean>
   getWhisperPttKey: () => Promise<string | null>
+  getWhisperPttDomCode: () => Promise<string | null>
   clearWhisperPttKey: () => Promise<void>
   onWhisperPttKeyDown: (cb: () => void) => void
   onWhisperPttKeyUp: (cb: () => void) => void

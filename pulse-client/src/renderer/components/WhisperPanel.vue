@@ -4,11 +4,7 @@
 
     <!-- Admin: create group form -->
     <div v-if="authStore.isAdmin" class="wc-create">
-      <input
-        v-model="createName"
-        type="text"
-        placeholder="Group name"
-      />
+      <input v-model="createName" type="text" placeholder="Group name" />
       <select v-model="createVisibility">
         <option value="hidden">Hidden</option>
         <option value="existence">Exists</option>
@@ -29,7 +25,10 @@
         v-for="group in whisperStore.groups"
         :key="group.groupId"
         class="whisper-card"
-        :class="{ 'is-member': group.isMember, 'drag-over': dragOverGroup === group.groupId }"
+        :class="{
+          'is-member': group.isMember,
+          'drag-over': dragOverGroup === group.groupId,
+        }"
         @dragover.prevent="authStore.isAdmin && (dragOverGroup = group.groupId)"
         @dragleave="dragOverGroup = null"
         @drop.prevent="authStore.isAdmin && onDrop($event, group.groupId)"
@@ -46,21 +45,34 @@
             }"
           >
             {{
-              group.visibility === 'hidden'
-                ? 'HIDDEN'
-                : group.visibility === 'existence'
-                  ? 'EXISTS'
-                  : 'PUBLIC'
+              group.visibility === "hidden"
+                ? "HIDDEN"
+                : group.visibility === "existence"
+                  ? "EXISTS"
+                  : "PUBLIC"
             }}
           </span>
           <!-- Admin controls -->
           <div v-if="authStore.isAdmin" class="wc-admin-btns">
             <template v-if="dissolvePending === group.groupId">
               <span class="wc-dissolve-confirm-label">Sure?</span>
-              <button class="wc-dissolve-btn wc-dissolve-btn--confirm" @click="confirmDissolve(group.groupId)">Yes</button>
-              <button class="wc-dissolve-btn" @click="dissolvePending = null">No</button>
+              <button
+                class="wc-dissolve-btn wc-dissolve-btn--confirm"
+                @click="confirmDissolve(group.groupId)"
+              >
+                Yes
+              </button>
+              <button class="wc-dissolve-btn" @click="dissolvePending = null">
+                No
+              </button>
             </template>
-            <button v-else class="wc-dissolve-btn" @click="dissolvePending = group.groupId">Dissolve</button>
+            <button
+              v-else
+              class="wc-dissolve-btn"
+              @click="dissolvePending = group.groupId"
+            >
+              Dissolve
+            </button>
           </div>
         </div>
 
@@ -79,7 +91,9 @@
               <span
                 class="wc-av"
                 :style="{ background: avatarColor(displayName(userId)) }"
-              >{{ initials(displayName(userId)) }}</span>
+              >
+                {{ initials(displayName(userId)) }}
+              </span>
               <span
                 v-if="isSpeaking(group.groupId, userId)"
                 class="wc-speaking-ring"
@@ -91,121 +105,139 @@
               class="wc-remove-btn"
               title="Remove member"
               @click="handleRemoveMember(group.groupId, userId)"
-            >×</button>
+            >
+              ×
+            </button>
           </div>
         </div>
 
         <!-- Existence-visibility non-member count -->
         <div
-          v-else-if="group.visibility === 'existence' && group.memberCount !== undefined"
+          v-else-if="
+            group.visibility === 'existence' && group.memberCount !== undefined
+          "
           class="wc-member-count"
         >
           {{ group.memberCount }} member(s)
         </div>
-
-
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { useWhisperStore } from '../stores/whisper'
-import { useRoomStore } from '../stores/room'
-import { useAuthStore } from '../stores/auth'
-import { usePresence } from '../composables/usePresence'
-import { useLiveKit } from '../composables/useLiveKit'
-import { usePtt } from '../composables/usePtt'
-import { useUsersStore } from '../stores/users'
-import { avatarColor, initials } from '../utils/avatar'
+import { ref, watch, onMounted, onUnmounted } from "vue";
+import { useWhisperStore } from "../stores/whisper";
+import { useRoomStore } from "../stores/room";
+import { useAuthStore } from "../stores/auth";
+import { usePresence } from "../composables/usePresence";
+import { useLiveKit } from "../composables/useLiveKit";
+import { usePtt } from "../composables/usePtt";
+import { useUsersStore } from "../stores/users";
+import { avatarColor, initials } from "../utils/avatar";
 
-const whisperStore = useWhisperStore()
-const roomStore = useRoomStore()
-const authStore = useAuthStore()
-const { createWhisperGroup, addWhisperMember, removeWhisperMember, dissolveWhisperGroup, broadcastMuteChanged } = usePresence()
-const { getWhisperRoom, setMainMicEnabled, isDeafened, isExplicitlyMuted } = useLiveKit()
-const { isPttMode } = usePtt()
-const usersStore = useUsersStore()
+const whisperStore = useWhisperStore();
+const roomStore = useRoomStore();
+const authStore = useAuthStore();
+const {
+  createWhisperGroup,
+  addWhisperMember,
+  removeWhisperMember,
+  dissolveWhisperGroup,
+  broadcastMuteChanged,
+} = usePresence();
+const { getWhisperRoom, setMainMicEnabled, isDeafened, isExplicitlyMuted } =
+  useLiveKit();
+const { isPttMode } = usePtt();
+const usersStore = useUsersStore();
 
-const createName = ref('')
-const dragOverGroup = ref<string | null>(null)
-const createVisibility = ref<'hidden' | 'existence' | 'full'>('hidden')
-const createError = ref('')
-const dissolvePending = ref<string | null>(null)
-
+const createName = ref("");
+const dragOverGroup = ref<string | null>(null);
+const createVisibility = ref<"hidden" | "existence" | "full">("hidden");
+const createError = ref("");
+const dissolvePending = ref<string | null>(null);
 
 function isSpeaking(groupId: string, userId: string): boolean {
-  const lower = userId.toLowerCase()
-  return (whisperStore.speakers.get(groupId) ?? []).some(id => id.toLowerCase() === lower)
+  const lower = userId.toLowerCase();
+  return (whisperStore.speakers.get(groupId) ?? []).some(
+    (id) => id.toLowerCase() === lower,
+  );
 }
 
 function displayName(userId: string): string {
-  const inRoom = roomStore.participants.find(p => p.userId === userId)
-  if (inRoom) return inRoom.displayName
-  return usersStore.displayName(userId)
+  const inRoom = roomStore.participants.find((p) => p.userId === userId);
+  if (inRoom) return inRoom.displayName;
+  return usersStore.displayName(userId);
 }
 
 function handleCreate(): void {
-  createError.value = ''
+  createError.value = "";
   if (!createName.value.trim()) {
-    createError.value = 'Name required'
-    return
+    createError.value = "Name required";
+    return;
   }
-  createWhisperGroup(createName.value.trim(), createVisibility.value)
-    .catch(e => { createError.value = String(e) })
-  createName.value = ''
+  createWhisperGroup(createName.value.trim(), createVisibility.value).catch(
+    (e) => {
+      createError.value = String(e);
+    },
+  );
+  createName.value = "";
 }
 
 function onDrop(e: DragEvent, groupId: string): void {
-  dragOverGroup.value = null
-  const userId = e.dataTransfer?.getData('text/plain')
-  if (!userId) return
-  addWhisperMember(groupId, userId).catch(err => { createError.value = String(err) })
+  dragOverGroup.value = null;
+  const userId = e.dataTransfer?.getData("text/plain");
+  if (!userId) return;
+  addWhisperMember(groupId, userId).catch((err) => {
+    createError.value = String(err);
+  });
 }
 
 function confirmDissolve(groupId: string): void {
-  dissolvePending.value = null
-  dissolveWhisperGroup(groupId)
+  dissolvePending.value = null;
+  dissolveWhisperGroup(groupId);
 }
 
 function handleRemoveMember(groupId: string, userId: string): void {
-  removeWhisperMember(groupId, userId).catch(e => { createError.value = String(e) })
+  removeWhisperMember(groupId, userId).catch((e) => {
+    createError.value = String(e);
+  });
 }
 
-
 onMounted(() => {
-  console.log('[WhisperPTT] onMounted — registering listeners')
   window.pulseApi.onWhisperPttKeyDown(async () => {
-    console.log('[WhisperPTT] keydown, deafened:', isDeafened.value, 'muted:', isExplicitlyMuted.value, 'myGroups:', whisperStore.myGroups.length)
-    if (isDeafened.value || isExplicitlyMuted.value) return
-    const myGroups = whisperStore.myGroups
-    if (myGroups.length === 0) return
-    await setMainMicEnabled(false)
-    await broadcastMuteChanged(true)
+    if (isDeafened.value || isExplicitlyMuted.value) return;
+    const myGroups = whisperStore.myGroups;
+    if (myGroups.length === 0) return;
+    await setMainMicEnabled(false);
+    await broadcastMuteChanged(true);
     for (const group of myGroups) {
-      const room = getWhisperRoom(group.groupId)
-      console.log('[WhisperPTT] enabling mic for group', group.groupId, 'room:', !!room)
+      const room = getWhisperRoom(group.groupId);
       await room?.localParticipant.setMicrophoneEnabled(true, {
-        noiseSuppression: true, echoCancellation: true, autoGainControl: true,
-      })
+        noiseSuppression: true,
+        echoCancellation: true,
+        autoGainControl: true,
+      });
     }
-  })
+  });
 
   window.pulseApi.onWhisperPttKeyUp(async () => {
-    const myGroups = whisperStore.myGroups
+    const myGroups = whisperStore.myGroups;
     for (const group of myGroups) {
-      await getWhisperRoom(group.groupId)?.localParticipant.setMicrophoneEnabled(false)
+      await getWhisperRoom(
+        group.groupId,
+      )?.localParticipant.setMicrophoneEnabled(false);
     }
-    const restoreMain = !isPttMode.value && !isExplicitlyMuted.value && !isDeafened.value
-    await setMainMicEnabled(restoreMain)
-    await broadcastMuteChanged(!restoreMain)
-  })
-})
+    const restoreMain =
+      !isPttMode.value && !isExplicitlyMuted.value && !isDeafened.value;
+    await setMainMicEnabled(restoreMain);
+    await broadcastMuteChanged(!restoreMain);
+  });
+});
 
 onUnmounted(() => {
-  window.pulseApi.removeWhisperPttListeners()
-})
+  window.pulseApi.removeWhisperPttListeners();
+});
 </script>
 
 <style scoped>
@@ -273,9 +305,15 @@ onUnmounted(() => {
   border: 1.5px solid currentColor;
   flex: 0 0 auto;
 }
-.wc-vis--hidden { color: var(--c-ink-4); }
-.wc-vis--existence { color: var(--warn, #f0a500); }
-.wc-vis--full { color: var(--voice); }
+.wc-vis--hidden {
+  color: var(--c-ink-4);
+}
+.wc-vis--existence {
+  color: var(--warn, #f0a500);
+}
+.wc-vis--full {
+  color: var(--voice);
+}
 .wc-members {
   display: flex;
   flex-direction: column;
@@ -315,8 +353,15 @@ onUnmounted(() => {
   animation: ring-pulse 1.2s ease-in-out infinite;
 }
 @keyframes ring-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.08); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.08);
+  }
 }
 .wc-member-name {
   flex: 1 1 auto;
@@ -392,8 +437,14 @@ onUnmounted(() => {
   cursor: pointer;
   font-family: inherit;
 }
-.wc-dissolve-btn:hover { color: var(--live); border-color: var(--live); }
-.wc-dissolve-btn--confirm { color: var(--live); border-color: var(--live); }
+.wc-dissolve-btn:hover {
+  color: var(--live);
+  border-color: var(--live);
+}
+.wc-dissolve-btn--confirm {
+  color: var(--live);
+  border-color: var(--live);
+}
 .wc-dissolve-confirm-label {
   font-size: 10px;
   color: var(--c-ink-4);
@@ -412,5 +463,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
 }
-.wc-remove-btn:hover { color: var(--live); }
+.wc-remove-btn:hover {
+  color: var(--live);
+}
 </style>

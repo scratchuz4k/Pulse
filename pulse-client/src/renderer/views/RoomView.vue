@@ -45,6 +45,19 @@
                   </div>
                   <span class="ch-name">{{ p.displayName }}</span>
                   <span v-if="p.userId === roomStore.prioritySpeakerId" class="ch-ps-badge" title="Priority Speaker">★</span>
+                  <svg v-if="p.isMuted" class="ch-state-icon ch-state-icon--muted" title="Muted" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 2l12 12"/>
+                    <path d="M8 1a3 3 0 013 3v3a3 3 0 01-.2 1.1"/>
+                    <path d="M5 5.5V4a3 3 0 015.5-1.6"/>
+                    <path d="M5 10a3 3 0 005.5-1.6"/>
+                    <path d="M3.5 6.5A6 6 0 008 14m0 0v-2"/>
+                  </svg>
+                  <svg v-if="p.isDeafened" class="ch-state-icon ch-state-icon--deafened" title="Deafened" viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 3l10 10"/>
+                    <path d="M5.5 4A4 4 0 0112 8v1"/>
+                    <path d="M4 8a4 4 0 001 2.6"/>
+                    <path d="M10 13H8a2 2 0 01-2-2v-1"/>
+                  </svg>
                   <button
                     v-if="authStore.isAdmin"
                     class="ch-ps-btn"
@@ -74,7 +87,13 @@
                   <button class="ch-join-btn" :disabled="joining" @click.stop="handleJoinRoom(room.name)">Join ▸</button>
                 </div>
                 <div v-if="expandedRooms.has(room.name)" class="ch-members">
-                  <div v-for="p in room.participants" :key="p.userId" class="ch-member">
+                  <div
+                    v-for="p in room.participants"
+                    :key="p.userId"
+                    class="ch-member"
+                    :draggable="authStore.isAdmin"
+                    @dragstart="authStore.isAdmin && onParticipantDragStart($event, p.userId)"
+                  >
                     <span class="ch-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
                     <span class="ch-name">{{ p.displayName }}</span>
                   </div>
@@ -107,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref } from "vue";
 import WhisperPanel from "../components/WhisperPanel.vue";
 import { useRoomStore } from "../stores/room";
 import { useAuthStore } from "../stores/auth";
@@ -183,25 +202,6 @@ function togglePrioritySpeaker(userId: string): void {
   }
 }
 
-async function setMicEnabled(v: boolean): Promise<void> {
-  await setMainMicEnabled(v)
-  await broadcastMuteChanged(!v)
-}
-
-onMounted(() => {
-  window.pulseApi.onPttKeyDown(() => {
-    console.log('[PTT] keydown, isPttMode:', isPttMode.value, 'isConnected:', isConnected.value)
-    if (isPttMode.value) setMicEnabled(true);
-  });
-  window.pulseApi.onPttKeyUp(() => {
-    console.log('[PTT] keyup, isPttMode:', isPttMode.value)
-    if (isPttMode.value) setMicEnabled(false);
-  });
-});
-
-onUnmounted(() => {
-  window.pulseApi.removePttListeners();
-});
 
 async function handleJoin(): Promise<void> {
   if (!roomNameInput.value.trim()) return;
@@ -460,6 +460,11 @@ void isConnected;
 }
 .ch-member:hover .ch-drag-icon { opacity: 1; }
 .ch-member.ps-active { background: rgba(240, 167, 0, 0.08); }
+.ch-state-icon {
+  flex: 0 0 auto;
+}
+.ch-state-icon--muted { color: var(--live, #e84545); }
+.ch-state-icon--deafened { color: var(--live, #e84545); }
 .ch-ps-badge {
   flex: 0 0 auto;
   font-size: 10px;

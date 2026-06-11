@@ -14,18 +14,9 @@ function getPttKeycode(): number | null {
   return (store.get('ptt.keycode') as number | undefined) ?? null
 }
 
-function getPttDomCode(): string | null {
-  return (store.get('ptt.domCode') as string | undefined) ?? null
-}
-
 function getWhisperPttKeycode(): number | null {
   return (store.get('whisperPtt.keycode') as number | undefined) ?? null
 }
-
-function getWhisperPttDomCode(): string | null {
-  return (store.get('whisperPtt.domCode') as string | undefined) ?? null
-}
-
 
 // Human-readable label for uiohook keycodes
 const UIOHOOK_TO_LABEL: Record<number, string> = {}
@@ -33,12 +24,12 @@ for (const [name, code] of Object.entries(UiohookKey as Record<string, number>))
   if (!UIOHOOK_TO_LABEL[code]) UIOHOOK_TO_LABEL[code] = name
 }
 
-// Map DOM KeyboardEvent.code → uiohook keycode for DOM-based key capture
+// Map DOM KeyboardEvent.code → uiohook keycode
 function domCodeToUiohook(code: string): number | null {
   const uk = UiohookKey as Record<string, number>
-  if (/^Key[A-Z]$/.test(code)) return uk[code.slice(3)] ?? null      // KeyJ → J
-  if (/^Digit[0-9]$/.test(code)) return uk[`Num${code.slice(5)}`] ?? null // Digit5 → Num5
-  return uk[code] ?? null  // Space, Enter, F1, ArrowUp, etc.
+  if (/^Key[A-Z]$/.test(code)) return uk[code.slice(3)] ?? null
+  if (/^Digit[0-9]$/.test(code)) return uk[`Num${code.slice(5)}`] ?? null
+  return uk[code] ?? null
 }
 
 async function createStore(): Promise<void> {
@@ -78,7 +69,7 @@ app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.pulse.client')
 
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
-    callback(true) // grant all permissions in dev
+    callback(true)
   })
 
   app.on('browser-window-created', (_, window) => {
@@ -87,27 +78,15 @@ app.whenReady().then(async () => {
 
   await createStore()
 
-  ipcMain.handle('store:get', (_event, key: string) => {
-    return store.get(key)
-  })
-
-  ipcMain.handle('store:set', (_event, key: string, value: string) => {
-    store.set(key, value)
-  })
-
-  ipcMain.handle('store:del', (_event, key: string) => {
-    store.delete(key)
-  })
+  ipcMain.handle('store:get', (_event, key: string) => store.get(key))
+  ipcMain.handle('store:set', (_event, key: string, value: string) => store.set(key, value))
+  ipcMain.handle('store:del', (_event, key: string) => store.delete(key))
 
   ipcMain.handle('ptt:get-key', () => (store.get('ptt.keyLabel') as string | undefined) ?? null)
-
+  ipcMain.handle('ptt:get-dom-code', () => (store.get('ptt.domCode') as string | undefined) ?? null)
   ipcMain.handle('ptt:get-mode', () => (store.get('ptt.mode') as boolean | undefined) ?? false)
+  ipcMain.handle('ptt:set-mode', (_event, enabled: boolean) => store.set('ptt.mode', !!enabled))
 
-  ipcMain.handle('ptt:set-mode', (_event, enabled: boolean) => {
-    store.set('ptt.mode', !!enabled)
-  })
-
-  // DOM-based capture: renderer sends e.code + label, we resolve uiohook keycode here
   ipcMain.handle('ptt:set-key-by-code', (_event, code: string, label: string) => {
     const keycode = domCodeToUiohook(code)
     if (keycode === null) return false
@@ -137,9 +116,8 @@ app.whenReady().then(async () => {
     return true
   })
 
-  ipcMain.handle('whisper:get-ptt-key', () => {
-    return (store.get('whisperPtt.label') as string | undefined) ?? null
-  })
+  ipcMain.handle('whisper:get-ptt-key', () => (store.get('whisperPtt.label') as string | undefined) ?? null)
+  ipcMain.handle('whisper:get-ptt-dom-code', () => (store.get('whisperPtt.domCode') as string | undefined) ?? null)
 
   ipcMain.handle('whisper:clear-ptt-key', () => {
     store.delete('whisperPtt.keycode' as never)
@@ -148,69 +126,51 @@ app.whenReady().then(async () => {
 
   createWindow()
 
-  // When the renderer has focus, before-input-event handles PTT (prevents DOM side-effects).
-  // When unfocused, uiohook handles it. Both cover keyup as well.
-  mainWindow!.webContents.on('before-input-event', (event, input) => {
-    if (input.type === 'keyDown') {
-      if (input.isAutoRepeat) return
-      const pttCode = getPttDomCode()
-      if (pttCode && input.code === pttCode) {
-        event.preventDefault()
-        mainWindow?.webContents.send('ptt:keydown')
-      }
-      const whisperCode = getWhisperPttDomCode()
-      if (whisperCode && input.code === whisperCode) {
-        event.preventDefault()
-        mainWindow?.webContents.send('whisper:ptt-keydown')
-      }
+  // before-input-event: handles PTT when window is focused.
+  // Immune to the WH_KEYBOARD_LL timeout that kills uiohook under load (e.g. LiveKit connect).
+  mainWindow!.webContents.on('before-input-event', (_event, input) => {
+    const pttCode = store.get('ptt.domCode') as string | undefined
+    const whisperCode = store.get('whisperPtt.domCode') as string | undefined
+    if (input.type === 'keyDown' && !input.isAutoRepeat) {
+      if (pttCode && input.code === pttCode) mainWindow?.webContents.send('ptt:keydown')
+      if (whisperCode && input.code === whisperCode) mainWindow?.webContents.send('whisper:ptt-keydown')
     } else if (input.type === 'keyUp') {
-      const pttCode = getPttDomCode()
-      if (pttCode && input.code === pttCode) {
-        mainWindow?.webContents.send('ptt:keyup')
-      }
-      const whisperCode = getWhisperPttDomCode()
-      if (whisperCode && input.code === whisperCode) {
-        mainWindow?.webContents.send('whisper:ptt-keyup')
-      }
+      if (pttCode && input.code === pttCode) mainWindow?.webContents.send('ptt:keyup')
+      if (whisperCode && input.code === whisperCode) mainWindow?.webContents.send('whisper:ptt-keyup')
     }
   })
 
-  // Global PTT hook for when the window is NOT focused (before-input-event won't fire).
+  // uiohook: handles PTT when window is NOT focused (global hotkey).
+  // heldKeys deduplicates OS auto-repeat so only one keydown fires per physical press.
+  const heldKeys = new Set<number>()
+
   uIOhook.on('keydown', (e) => {
-    if (mainWindow?.webContents.isFocused()) return
-    const whisperCode = getWhisperPttKeycode()
-    if (whisperCode && e.keycode === whisperCode) {
-      console.log('[main] whisper ptt-keydown (unfocused), keycode:', e.keycode)
-      mainWindow?.webContents.send('whisper:ptt-keydown')
-    }
-    const code = getPttKeycode()
-    if (code && e.keycode === code) {
-      console.log('[main] ptt-keydown (unfocused), keycode:', e.keycode)
-      mainWindow?.webContents.send('ptt:keydown')
-    }
+    if (mainWindow?.isFocused()) return
+    if (heldKeys.has(e.keycode)) return
+    heldKeys.add(e.keycode)
+    const whisper = getWhisperPttKeycode()
+    if (whisper && e.keycode === whisper) mainWindow?.webContents.send('whisper:ptt-keydown')
+    const ptt = getPttKeycode()
+    if (ptt && e.keycode === ptt) mainWindow?.webContents.send('ptt:keydown')
   })
 
   uIOhook.on('keyup', (e) => {
-    if (mainWindow?.webContents.isFocused()) return
-    const whisperCode = getWhisperPttKeycode()
-    if (whisperCode && e.keycode === whisperCode) {
-      mainWindow?.webContents.send('whisper:ptt-keyup')
-    }
-    const code = getPttKeycode()
-    if (code && e.keycode === code) {
-      mainWindow?.webContents.send('ptt:keyup')
-    }
+    heldKeys.delete(e.keycode)
+    if (mainWindow?.isFocused()) return
+    const whisper = getWhisperPttKeycode()
+    if (whisper && e.keycode === whisper) mainWindow?.webContents.send('whisper:ptt-keyup')
+    const ptt = getPttKeycode()
+    if (ptt && e.keycode === ptt) mainWindow?.webContents.send('ptt:keyup')
   })
+
   uIOhook.start()
 
-  app.on('activate', function () {
+  app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
 app.on('window-all-closed', () => {
   uIOhook.stop()
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  if (process.platform !== 'darwin') app.quit()
 })

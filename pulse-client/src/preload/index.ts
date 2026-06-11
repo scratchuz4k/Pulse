@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('pulseApi', {
     ipcRenderer.invoke('ptt:set-key-by-code', code, label) as Promise<boolean>,
 startPttCapture: () => ipcRenderer.invoke('ptt:start-capture'),
   getPttKey: () => ipcRenderer.invoke('ptt:get-key') as Promise<string | null>,
+  getPttDomCode: () => ipcRenderer.invoke('ptt:get-dom-code') as Promise<string | null>,
   onPttCaptured: (cb: (label: string) => void) =>
     ipcRenderer.on('ptt:captured', (_e, lbl: string) => cb(lbl)),
   getPttMode: () => ipcRenderer.invoke('ptt:get-mode') as Promise<boolean>,
@@ -22,6 +23,8 @@ startPttCapture: () => ipcRenderer.invoke('ptt:start-capture'),
     ipcRenderer.invoke('whisper:set-ptt-key', code, label) as Promise<boolean>,
   getWhisperPttKey: () =>
     ipcRenderer.invoke('whisper:get-ptt-key') as Promise<string | null>,
+  getWhisperPttDomCode: () =>
+    ipcRenderer.invoke('whisper:get-ptt-dom-code') as Promise<string | null>,
   clearWhisperPttKey: () =>
     ipcRenderer.invoke('whisper:clear-ptt-key'),
   onWhisperPttKeyDown: (cb: () => void) =>
