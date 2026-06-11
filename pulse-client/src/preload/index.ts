@@ -22,4 +22,22 @@ startPttCapture: () => ipcRenderer.invoke('ptt:start-capture'),
     ipcRenderer.invoke('whisper:set-open-mic', groupId, enabled),
   getWhisperOpenMic: (groupId: string) =>
     ipcRenderer.invoke('whisper:get-open-mic', groupId) as Promise<boolean>,
+  setWhisperPttKeyByCode: (groupId: string, code: string, label: string) =>
+    ipcRenderer.invoke('whisper:set-ptt-key', groupId, code, label) as Promise<boolean>,
+  getWhisperPttKey: (groupId: string) =>
+    ipcRenderer.invoke('whisper:get-ptt-key', groupId) as Promise<{ keycode: number; label: string } | null>,
+  clearWhisperPttKey: (groupId: string) =>
+    ipcRenderer.invoke('whisper:clear-ptt-key', groupId),
+  setWhisperPttMode: (groupId: string, mode: 'inclusive' | 'exclusive') =>
+    ipcRenderer.invoke('whisper:set-ptt-mode', groupId, mode),
+  getWhisperPttMode: (groupId: string) =>
+    ipcRenderer.invoke('whisper:get-ptt-mode', groupId) as Promise<'inclusive' | 'exclusive'>,
+  onWhisperPttKeyDown: (cb: (payload: { groupId: string; mode: 'inclusive' | 'exclusive' }) => void) =>
+    ipcRenderer.on('whisper:ptt-keydown', (_e, payload) => cb(payload)),
+  onWhisperPttKeyUp: (cb: (payload: { groupId: string }) => void) =>
+    ipcRenderer.on('whisper:ptt-keyup', (_e, payload) => cb(payload)),
+  removeWhisperPttListeners: () => {
+    ipcRenderer.removeAllListeners('whisper:ptt-keydown')
+    ipcRenderer.removeAllListeners('whisper:ptt-keyup')
+  },
 })

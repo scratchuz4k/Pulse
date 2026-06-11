@@ -14,6 +14,11 @@ function getPttKeycode(): number | null {
   return (store.get('ptt.keycode') as number | undefined) ?? null
 }
 
+// In-memory whisper PTT map: groupId -> { keycode, mode }
+const whisperPttMap = new Map<string, { keycode: number; mode: 'inclusive' | 'exclusive' }>()
+// Keycodes where main PTT was suppressed on keydown (exclusive whisper)
+const suppressedMainPttKeys = new Set<number>()
+
 
 // Human-readable label for uiohook keycodes
 const UIOHOOK_TO_LABEL: Record<number, string> = {}
@@ -123,20 +128,74 @@ app.whenReady().then(async () => {
     return (store.get(`whisper.${groupId}.openMic`) as boolean | undefined) ?? false
   })
 
+  ipcMain.handle('whisper:set-ptt-key', (_event, groupId: string, code: string, label: string) => {
+    const keycode = domCodeToUiohook(code)
+    if (keycode === null) return false
+    store.set(`whisper.${groupId}.pttKeycode`, keycode)
+    store.set(`whisper.${groupId}.pttLabel`, label)
+    const existing = whisperPttMap.get(groupId)
+    whisperPttMap.set(groupId, { keycode, mode: existing?.mode ?? 'inclusive' })
+    return true
+  })
+
+  ipcMain.handle('whisper:get-ptt-key', (_event, groupId: string) => {
+    const keycode = store.get(`whisper.${groupId}.pttKeycode`) as number | undefined
+    const label = store.get(`whisper.${groupId}.pttLabel`) as string | undefined
+    if (!keycode) return null
+    return { keycode, label: label ?? `Key${keycode}` }
+  })
+
+  ipcMain.handle('whisper:clear-ptt-key', (_event, groupId: string) => {
+    store.delete(`whisper.${groupId}.pttKeycode` as never)
+    store.delete(`whisper.${groupId}.pttLabel` as never)
+    whisperPttMap.delete(groupId)
+  })
+
+  ipcMain.handle('whisper:set-ptt-mode', (_event, groupId: string, mode: 'inclusive' | 'exclusive') => {
+    store.set(`whisper.${groupId}.pttMode`, mode)
+    const existing = whisperPttMap.get(groupId)
+    if (existing) whisperPttMap.set(groupId, { ...existing, mode })
+  })
+
+  ipcMain.handle('whisper:get-ptt-mode', (_event, groupId: string) => {
+    return (store.get(`whisper.${groupId}.pttMode`) as string | undefined) ?? 'inclusive'
+  })
+
   createWindow()
 
   // Global PTT hook — WH_KEYBOARD_LL on Windows: passively listens, always calls
   // CallNextHookEx so the key is NOT consumed and still works in other applications.
   uIOhook.on('keydown', (e) => {
+    let suppressMainPtt = false
+    for (const [groupId, { keycode, mode }] of whisperPttMap) {
+      if (e.keycode === keycode) {
+        mainWindow?.webContents.send('whisper:ptt-keydown', { groupId, mode })
+        if (mode === 'exclusive') suppressMainPtt = true
+      }
+    }
     const code = getPttKeycode()
     if (code && e.keycode === code) {
-      mainWindow?.webContents.send('ptt:keydown')
+      if (suppressMainPtt) {
+        suppressedMainPttKeys.add(e.keycode)
+      } else {
+        mainWindow?.webContents.send('ptt:keydown')
+      }
     }
   })
+
   uIOhook.on('keyup', (e) => {
-    const code = getPttKeycode()
-    if (code && e.keycode === code) {
-      mainWindow?.webContents.send('ptt:keyup')
+    for (const [groupId, { keycode }] of whisperPttMap) {
+      if (e.keycode === keycode) {
+        mainWindow?.webContents.send('whisper:ptt-keyup', { groupId })
+      }
+    }
+    if (suppressedMainPttKeys.has(e.keycode)) {
+      suppressedMainPttKeys.delete(e.keycode)
+    } else {
+      const code = getPttKeycode()
+      if (code && e.keycode === code) {
+        mainWindow?.webContents.send('ptt:keyup')
+      }
     }
   })
   uIOhook.start()

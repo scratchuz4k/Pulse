@@ -15,6 +15,14 @@ startPttCapture: () => Promise<void>
   removePttListeners: () => void
   setWhisperOpenMic: (groupId: string, enabled: boolean) => Promise<void>
   getWhisperOpenMic: (groupId: string) => Promise<boolean>
+  setWhisperPttKeyByCode: (groupId: string, code: string, label: string) => Promise<boolean>
+  getWhisperPttKey: (groupId: string) => Promise<{ keycode: number; label: string } | null>
+  clearWhisperPttKey: (groupId: string) => Promise<void>
+  setWhisperPttMode: (groupId: string, mode: 'inclusive' | 'exclusive') => Promise<void>
+  getWhisperPttMode: (groupId: string) => Promise<'inclusive' | 'exclusive'>
+  onWhisperPttKeyDown: (cb: (payload: { groupId: string; mode: 'inclusive' | 'exclusive' }) => void) => void
+  onWhisperPttKeyUp: (cb: (payload: { groupId: string }) => void) => void
+  removeWhisperPttListeners: () => void
 }
 
 declare global {

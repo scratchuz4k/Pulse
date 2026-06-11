@@ -115,6 +115,33 @@
             />
             Open mic
           </label>
+          <div class="wc-ptt-row">
+            <span class="wc-ptt-label">PTT</span>
+            <button
+              v-if="capturingPttFor === group.groupId"
+              class="wc-ptt-bind wc-ptt-bind--capturing"
+            >Press a key…</button>
+            <button
+              v-else
+              class="wc-ptt-bind"
+              @click="startPttCapture(group.groupId)"
+            >{{ pttKeys[group.groupId] ?? 'Bind key' }}</button>
+            <button
+              v-if="pttKeys[group.groupId]"
+              class="wc-ptt-clear"
+              @click="clearPttKey(group.groupId)"
+            >×</button>
+          </div>
+          <div v-if="pttKeys[group.groupId]" class="wc-ptt-modes">
+            <button
+              :class="['wc-ptt-mode', pttModes[group.groupId] !== 'exclusive' && 'active']"
+              @click="setPttMode(group.groupId, 'inclusive')"
+            >Inclusive</button>
+            <button
+              :class="['wc-ptt-mode', pttModes[group.groupId] === 'exclusive' && 'active']"
+              @click="setPttMode(group.groupId, 'exclusive')"
+            >Exclusive</button>
+          </div>
         </div>
       </div>
     </div>
@@ -122,20 +149,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useWhisperStore } from '../stores/whisper'
 import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '../stores/auth'
 import { usePresence } from '../composables/usePresence'
 import { useLiveKit } from '../composables/useLiveKit'
+import { usePtt } from '../composables/usePtt'
 import { useUsersStore } from '../stores/users'
 import { avatarColor, initials } from '../utils/avatar'
 
 const whisperStore = useWhisperStore()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
-const { createWhisperGroup, addWhisperMember, removeWhisperMember, dissolveWhisperGroup } = usePresence()
-const { getWhisperRoom, setWhisperOpenMicCache } = useLiveKit()
+const { createWhisperGroup, addWhisperMember, removeWhisperMember, dissolveWhisperGroup, broadcastMuteChanged } = usePresence()
+const { getWhisperRoom, setWhisperOpenMicCache, setMainMicEnabled } = useLiveKit()
+const { isPttMode } = usePtt()
 const usersStore = useUsersStore()
 
 const createName = ref('')
@@ -144,6 +173,9 @@ const createVisibility = ref<'hidden' | 'existence' | 'full'>('hidden')
 const createError = ref('')
 const openMicGroups = ref<Record<string, boolean>>({})
 const dissolvePending = ref<string | null>(null)
+const pttKeys = ref<Record<string, string>>({})       // groupId -> label
+const pttModes = ref<Record<string, 'inclusive' | 'exclusive'>>({})
+const capturingPttFor = ref<string | null>(null)
 
 
 function isSpeaking(groupId: string, userId: string): boolean {
@@ -203,6 +235,42 @@ function loadGroupSettings(groupId: string): void {
     openMicGroups.value[groupId] = v
     setWhisperOpenMicCache(groupId, v)
   })
+  window.pulseApi.getWhisperPttKey(groupId).then(v => {
+    if (v) pttKeys.value[groupId] = v.label
+  })
+  window.pulseApi.getWhisperPttMode(groupId).then(v => {
+    pttModes.value[groupId] = v
+  })
+}
+
+function startPttCapture(groupId: string): void {
+  capturingPttFor.value = groupId
+}
+
+function clearPttKey(groupId: string): void {
+  window.pulseApi.clearWhisperPttKey(groupId)
+  delete pttKeys.value[groupId]
+  delete pttModes.value[groupId]
+}
+
+async function setPttMode(groupId: string, mode: 'inclusive' | 'exclusive'): Promise<void> {
+  pttModes.value[groupId] = mode
+  await window.pulseApi.setWhisperPttMode(groupId, mode)
+}
+
+function onCaptureKeydown(e: KeyboardEvent): void {
+  const groupId = capturingPttFor.value
+  if (!groupId) return
+  e.preventDefault()
+  e.stopPropagation()
+  const label = e.key.length === 1 ? e.key.toUpperCase() : e.code
+  window.pulseApi.setWhisperPttKeyByCode(groupId, e.code, label).then(ok => {
+    if (ok) {
+      pttKeys.value[groupId] = label
+      if (!pttModes.value[groupId]) pttModes.value[groupId] = 'inclusive'
+    }
+    capturingPttFor.value = null
+  })
 }
 
 onMounted(() => {
@@ -213,6 +281,33 @@ onMounted(() => {
       if (openMicGroups.value[group.groupId] === undefined) loadGroupSettings(group.groupId)
     }
   }, { deep: true })
+
+  document.addEventListener('keydown', onCaptureKeydown, true)
+
+  window.pulseApi.onWhisperPttKeyDown(async ({ groupId, mode }) => {
+    const room = getWhisperRoom(groupId)
+    await room?.localParticipant.setMicrophoneEnabled(true)
+    if (mode === 'inclusive' && isPttMode.value) {
+      await setMainMicEnabled(true)
+      await broadcastMuteChanged(false)
+    }
+  })
+
+  window.pulseApi.onWhisperPttKeyUp(async ({ groupId }) => {
+    const room = getWhisperRoom(groupId)
+    const openMic = openMicGroups.value[groupId] ?? false
+    await room?.localParticipant.setMicrophoneEnabled(openMic)
+    const mode = pttModes.value[groupId] ?? 'inclusive'
+    if (mode === 'inclusive' && isPttMode.value) {
+      await setMainMicEnabled(false)
+      await broadcastMuteChanged(true)
+    }
+  })
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onCaptureKeydown, true)
+  window.pulseApi.removeWhisperPttListeners()
 })
 </script>
 
@@ -353,6 +448,70 @@ onMounted(() => {
 .wc-open-mic-label input[type="checkbox"] {
   accent-color: var(--accent);
   cursor: pointer;
+}
+.wc-ptt-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+}
+.wc-ptt-label {
+  font-size: 11px;
+  color: var(--c-ink-4);
+  flex: 0 0 auto;
+}
+.wc-ptt-bind {
+  flex: 1 1 auto;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--c-border-2);
+  border-radius: var(--radius-sm);
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.wc-ptt-bind--capturing {
+  border-color: var(--accent);
+  color: var(--accent);
+  animation: tx-pulse 0.8s ease-in-out infinite alternate;
+}
+.wc-ptt-clear {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--c-ink-4);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+}
+.wc-ptt-clear:hover { color: var(--live); }
+.wc-ptt-modes {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.wc-ptt-mode {
+  flex: 1 1 50%;
+  height: 20px;
+  border: 1px solid var(--c-border-2);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--c-ink-4);
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+.wc-ptt-mode.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(99, 102, 241, 0.08);
 }
 .whisper-card.is-transmitting {
   border-color: var(--live);
