@@ -91,11 +91,12 @@
       </button>
     </nav>
     <RouterView />
-    <WhisperPanel />
+    <div class="whisper-resizer" @mousedown="startResize" />
+    <WhisperPanel :style="{ width: whisperWidth + 'px', flex: `0 0 ${whisperWidth}px` }" />
   </MainTemplate>
 </template>
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainTemplate from "@renderer/layouts/MainTemplate.vue";
 import WhisperPanel from "@renderer/components/WhisperPanel.vue";
@@ -105,6 +106,23 @@ import { SERVER_URL } from '@renderer/utils/config'
 const route = useRoute()
 const router = useRouter()
 const { connect, fetchRooms } = usePresence()
+
+const whisperWidth = ref(320)
+
+function startResize(e: MouseEvent): void {
+  e.preventDefault()
+  const startX = e.clientX
+  const startWidth = whisperWidth.value
+  function onMove(ev: MouseEvent): void {
+    whisperWidth.value = Math.max(200, Math.min(600, startWidth + (startX - ev.clientX)))
+  }
+  function onUp(): void {
+    window.removeEventListener('mousemove', onMove)
+    window.removeEventListener('mouseup', onUp)
+  }
+  window.addEventListener('mousemove', onMove)
+  window.addEventListener('mouseup', onUp)
+}
 
 onMounted(() => {
   connect(SERVER_URL)
@@ -172,5 +190,16 @@ onMounted(() => {
 
 .rail-spacer {
   flex: 1 1 auto;
+}
+.whisper-resizer {
+  width: 5px;
+  flex: 0 0 5px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+.whisper-resizer:hover,
+.whisper-resizer:active {
+  background: var(--accent);
 }
 </style>

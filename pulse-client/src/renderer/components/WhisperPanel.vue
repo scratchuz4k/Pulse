@@ -208,8 +208,8 @@ onMounted(() => {
 
 <style scoped>
 .whisper-panel {
-  width: 320px;
-  flex: 0 0 320px;
+  width: 100%;
+  flex: 1 1 auto;
   border-left: 1px solid var(--c-border);
   background: var(--c-side);
   display: flex;
