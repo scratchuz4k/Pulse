@@ -25,9 +25,9 @@ startPttCapture: () => ipcRenderer.invoke('ptt:start-capture'),
   clearWhisperPttKey: () =>
     ipcRenderer.invoke('whisper:clear-ptt-key'),
   onWhisperPttKeyDown: (cb: () => void) =>
-    ipcRenderer.on('whisper:ptt-keydown', cb),
+    ipcRenderer.on('whisper:ptt-keydown', () => cb()),
   onWhisperPttKeyUp: (cb: () => void) =>
-    ipcRenderer.on('whisper:ptt-keyup', cb),
+    ipcRenderer.on('whisper:ptt-keyup', () => cb()),
   removeWhisperPttListeners: () => {
     ipcRenderer.removeAllListeners('whisper:ptt-keydown')
     ipcRenderer.removeAllListeners('whisper:ptt-keyup')

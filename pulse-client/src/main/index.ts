@@ -14,8 +14,16 @@ function getPttKeycode(): number | null {
   return (store.get('ptt.keycode') as number | undefined) ?? null
 }
 
+function getPttDomCode(): string | null {
+  return (store.get('ptt.domCode') as string | undefined) ?? null
+}
+
 function getWhisperPttKeycode(): number | null {
   return (store.get('whisperPtt.keycode') as number | undefined) ?? null
+}
+
+function getWhisperPttDomCode(): string | null {
+  return (store.get('whisperPtt.domCode') as string | undefined) ?? null
 }
 
 
@@ -105,6 +113,7 @@ app.whenReady().then(async () => {
     if (keycode === null) return false
     store.set('ptt.keycode', keycode)
     store.set('ptt.keyLabel', label)
+    store.set('ptt.domCode', code)
     return true
   })
 
@@ -124,6 +133,7 @@ app.whenReady().then(async () => {
     if (keycode === null) return false
     store.set('whisperPtt.keycode', keycode)
     store.set('whisperPtt.label', label)
+    store.set('whisperPtt.domCode', code)
     return true
   })
 
@@ -138,22 +148,50 @@ app.whenReady().then(async () => {
 
   createWindow()
 
-  // Global PTT hook — WH_KEYBOARD_LL on Windows: passively listens, always calls
-  // CallNextHookEx so the key is NOT consumed and still works in other applications.
+  // When the renderer has focus, before-input-event handles PTT (prevents DOM side-effects).
+  // When unfocused, uiohook handles it. Both cover keyup as well.
+  mainWindow!.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown') {
+      if (input.isAutoRepeat) return
+      const pttCode = getPttDomCode()
+      if (pttCode && input.code === pttCode) {
+        event.preventDefault()
+        mainWindow?.webContents.send('ptt:keydown')
+      }
+      const whisperCode = getWhisperPttDomCode()
+      if (whisperCode && input.code === whisperCode) {
+        event.preventDefault()
+        mainWindow?.webContents.send('whisper:ptt-keydown')
+      }
+    } else if (input.type === 'keyUp') {
+      const pttCode = getPttDomCode()
+      if (pttCode && input.code === pttCode) {
+        mainWindow?.webContents.send('ptt:keyup')
+      }
+      const whisperCode = getWhisperPttDomCode()
+      if (whisperCode && input.code === whisperCode) {
+        mainWindow?.webContents.send('whisper:ptt-keyup')
+      }
+    }
+  })
+
+  // Global PTT hook for when the window is NOT focused (before-input-event won't fire).
   uIOhook.on('keydown', (e) => {
+    if (mainWindow?.webContents.isFocused()) return
     const whisperCode = getWhisperPttKeycode()
     if (whisperCode && e.keycode === whisperCode) {
-      console.log('[main] whisper ptt-keydown, keycode:', e.keycode)
+      console.log('[main] whisper ptt-keydown (unfocused), keycode:', e.keycode)
       mainWindow?.webContents.send('whisper:ptt-keydown')
     }
     const code = getPttKeycode()
     if (code && e.keycode === code) {
-      console.log('[main] ptt-keydown, keycode:', e.keycode)
+      console.log('[main] ptt-keydown (unfocused), keycode:', e.keycode)
       mainWindow?.webContents.send('ptt:keydown')
     }
   })
 
   uIOhook.on('keyup', (e) => {
+    if (mainWindow?.webContents.isFocused()) return
     const whisperCode = getWhisperPttKeycode()
     if (whisperCode && e.keycode === whisperCode) {
       mainWindow?.webContents.send('whisper:ptt-keyup')

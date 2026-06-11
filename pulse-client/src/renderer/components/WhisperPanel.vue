@@ -175,6 +175,7 @@ function handleRemoveMember(groupId: string, userId: string): void {
 
 
 onMounted(() => {
+  console.log('[WhisperPTT] onMounted — registering listeners')
   window.pulseApi.onWhisperPttKeyDown(async () => {
     console.log('[WhisperPTT] keydown, deafened:', isDeafened.value, 'muted:', isExplicitlyMuted.value, 'myGroups:', whisperStore.myGroups.length)
     if (isDeafened.value || isExplicitlyMuted.value) return
