@@ -17,7 +17,6 @@ export interface RoomParticipantSummary {
 export interface RoomInfo {
   id: number
   name: string
-  createdByUserId?: string
   participants: RoomParticipantSummary[]
 }
 

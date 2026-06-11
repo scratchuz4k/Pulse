@@ -1,5 +1,5 @@
 import * as signalR from '@microsoft/signalr'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRoomStore } from '../stores/room'
 import { useWhisperStore, type WhisperGroupEntry } from '../stores/whisper'
@@ -79,7 +79,7 @@ export function usePresence() {
       roomStore.setParticipantDeafened(connectionId, false)
     })
 
-    hubConnection.on('RoomListUpdated', (list: { id: number; name: string; createdByUserId?: string; participants: { displayName: string; userId: string }[] }[]) => {
+    hubConnection.on('RoomListUpdated', (list: { id: number; name: string; participants: { displayName: string; userId: string }[] }[]) => {
       roomStore.setRoomList(list)
     })
 
