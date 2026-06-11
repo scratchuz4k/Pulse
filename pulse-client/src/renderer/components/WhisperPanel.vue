@@ -227,7 +227,8 @@ async function handleOpenMicChange(groupId: string, enabled: boolean): Promise<v
   setWhisperOpenMicCache(groupId, enabled)
   window.pulseApi.setWhisperOpenMic(groupId, enabled)
   const whisperRoom = getWhisperRoom(groupId)
-  await whisperRoom?.localParticipant?.setMicrophoneEnabled(enabled)
+  const blocked = isDeafened.value || isExplicitlyMuted.value
+  await whisperRoom?.localParticipant?.setMicrophoneEnabled(enabled && !blocked)
 }
 
 function loadGroupSettings(groupId: string): void {
