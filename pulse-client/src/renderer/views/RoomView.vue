@@ -36,8 +36,8 @@
                   :key="p.connectionId"
                   class="ch-member"
                   :class="{ speaking: activeSpeakers.includes(p.userId), 'ps-active': p.userId === roomStore.prioritySpeakerId }"
-                  draggable="true"
-                  @dragstart="onParticipantDragStart($event, p.userId)"
+                  :draggable="authStore.isAdmin"
+                  @dragstart="authStore.isAdmin && onParticipantDragStart($event, p.userId)"
                 >
                   <div class="ch-av-wrap">
                     <span class="ch-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>

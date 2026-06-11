@@ -30,9 +30,9 @@
         :key="group.groupId"
         class="whisper-card"
         :class="{ 'is-member': group.isMember, 'drag-over': dragOverGroup === group.groupId, 'is-transmitting': isTransmitting(group.groupId) }"
-        @dragover.prevent="dragOverGroup = group.groupId"
+        @dragover.prevent="authStore.isAdmin && (dragOverGroup = group.groupId)"
         @dragleave="dragOverGroup = null"
-        @drop.prevent="onDrop($event, group.groupId)"
+        @drop.prevent="authStore.isAdmin && onDrop($event, group.groupId)"
       >
         <!-- Card header -->
         <div class="wc-head">
