@@ -123,12 +123,13 @@ import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '../stores/auth'
 import { usePresence } from '../composables/usePresence'
 import { useLiveKit } from '../composables/useLiveKit'
+import { avatarColor, initials } from '../utils/avatar'
 
 const whisperStore = useWhisperStore()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const { createWhisperGroup, addWhisperMember, removeWhisperMember, dissolveWhisperGroup } = usePresence()
-const { getWhisperRoom } = useLiveKit()
+const { getWhisperRoom, setWhisperOpenMicCache } = useLiveKit()
 
 const createName = ref('')
 const dragOverGroup = ref<string | null>(null)
@@ -136,19 +137,6 @@ const createVisibility = ref<'hidden' | 'existence' | 'full'>('hidden')
 const createError = ref('')
 const openMicGroups = ref<Record<string, boolean>>({})
 
-const AV_COLORS = [
-  '#e8722e', '#23c97d', '#5750d6', '#d6457f', '#3a86c8',
-  '#7a52c7', '#c2553f', '#2aa39a', '#b0843a', '#5a6acf',
-]
-function avatarColor(name: string): string {
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
-  return AV_COLORS[h % AV_COLORS.length]
-}
-function initials(name: string): string {
-  const p = name.trim().split(/\s+/)
-  return (p[0][0] + (p[1] ? p[1][0] : '')).toUpperCase()
-}
 
 function isSpeaking(groupId: string, userId: string): boolean {
   const lower = userId.toLowerCase()
@@ -194,13 +182,17 @@ function handleRemoveMember(groupId: string, userId: string): void {
 
 async function handleOpenMicChange(groupId: string, enabled: boolean): Promise<void> {
   openMicGroups.value[groupId] = enabled
+  setWhisperOpenMicCache(groupId, enabled)
   window.pulseApi.setWhisperOpenMic(groupId, enabled)
   const whisperRoom = getWhisperRoom(groupId)
   await whisperRoom?.localParticipant?.setMicrophoneEnabled(enabled)
 }
 
 function loadGroupSettings(groupId: string): void {
-  window.pulseApi.getWhisperOpenMic(groupId).then(v => { openMicGroups.value[groupId] = v })
+  window.pulseApi.getWhisperOpenMic(groupId).then(v => {
+    openMicGroups.value[groupId] = v
+    setWhisperOpenMicCache(groupId, v)
+  })
 }
 
 onMounted(() => {

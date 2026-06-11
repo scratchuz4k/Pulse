@@ -1,7 +1,6 @@
 import { useAuthStore } from '../stores/auth'
 import { router } from '../router'
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000'
+import { SERVER_URL } from '../utils/config'
 
 function isTokenExpired(token: string): boolean {
   try {

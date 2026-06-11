@@ -98,11 +98,10 @@ import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainTemplate from "@renderer/layouts/MainTemplate.vue";
 import { usePresence } from '@renderer/composables/usePresence'
+import { SERVER_URL } from '@renderer/utils/config'
 
 const route = useRoute()
 const router = useRouter()
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000'
 const { connect, fetchRooms } = usePresence()
 
 onMounted(() => {

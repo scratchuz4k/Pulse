@@ -9,6 +9,7 @@ export interface AudioDevice {
 
 let mainRoom: Room | null = null
 const whisperRooms = new Map<string, Room>()
+const whisperOpenMic = new Map<string, boolean>()
 const isConnected = ref(false)
 const isMicEnabled = ref(false)
 const activeSpeakers = ref<string[]>([])
@@ -216,6 +217,7 @@ export function useLiveKit() {
     room.on(RoomEvent.Disconnected, () => {
       if (speakingPoller) clearInterval(speakingPoller)
       whisperRooms.delete(groupId)
+      whisperOpenMic.delete(groupId)
       useWhisperStore().clearSpeakers(groupId)
       document.querySelectorAll<HTMLAudioElement>(`audio[id^="whisper-audio-${groupId}-"]`).forEach(el => el.remove())
     })
@@ -237,7 +239,7 @@ export function useLiveKit() {
           : current.filter(id => id.toLowerCase() !== localId.toLowerCase())
         )
       }
-    }, 80)
+    }, 500)
 
     whisperRooms.set(groupId, room)
     console.log(`[LiveKit] whisper room connected: ${groupId}`)
@@ -262,14 +264,17 @@ export function useLiveKit() {
     isMicEnabled.value = enabled
   }
 
+  function setWhisperOpenMicCache(groupId: string, enabled: boolean): void {
+    whisperOpenMic.set(groupId, enabled)
+  }
+
   // Mute/unmute whisper mics — respects per-group open mic setting on unmute
   async function applyMuteToWhisperRooms(muted: boolean): Promise<void> {
     for (const [groupId, room] of whisperRooms) {
       if (muted) {
         await room.localParticipant.setMicrophoneEnabled(false)
       } else {
-        const openMic = await window.pulseApi.getWhisperOpenMic(groupId)
-        if (openMic) await room.localParticipant.setMicrophoneEnabled(true)
+        if (whisperOpenMic.get(groupId)) await room.localParticipant.setMicrophoneEnabled(true)
       }
     }
   }
@@ -287,6 +292,6 @@ export function useLiveKit() {
     inputDevices, outputDevices, activeInputId, activeOutputId,
     prioritySpeakerId, setPrioritySpeaker,
     connectWhisper, disconnectWhisper, getWhisperRoom, setMainMicEnabled,
-    applyMuteToWhisperRooms, applyDeafenToWhisperRooms,
+    applyMuteToWhisperRooms, applyDeafenToWhisperRooms, setWhisperOpenMicCache,
   }
 }
