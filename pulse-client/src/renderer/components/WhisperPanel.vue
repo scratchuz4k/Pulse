@@ -3,7 +3,7 @@
     <div class="whisper-head">Whisper</div>
 
     <!-- Admin: create group form -->
-    <div v-if="authStore.isAdmin" class="wc-create">
+    <div v-if="authStore.isAdminOfActiveServer" class="wc-create">
       <input v-model="createName" type="text" placeholder="Group name" />
       <select v-model="createVisibility">
         <option value="hidden">Hidden</option>
@@ -29,9 +29,9 @@
           'is-member': group.isMember,
           'drag-over': dragOverGroup === group.groupId,
         }"
-        @dragover.prevent="authStore.isAdmin && (dragOverGroup = group.groupId)"
+        @dragover.prevent="authStore.isAdminOfActiveServer && (dragOverGroup = group.groupId)"
         @dragleave="dragOverGroup = null"
-        @drop.prevent="authStore.isAdmin && onDrop($event, group.groupId)"
+        @drop.prevent="authStore.isAdminOfActiveServer && onDrop($event, group.groupId)"
       >
         <!-- Card header -->
         <div class="wc-head">
@@ -53,7 +53,7 @@
             }}
           </span>
           <!-- Admin controls -->
-          <div v-if="authStore.isAdmin" class="wc-admin-btns">
+          <div v-if="authStore.isAdminOfActiveServer" class="wc-admin-btns">
             <template v-if="dissolvePending === group.groupId">
               <span class="wc-dissolve-confirm-label">Sure?</span>
               <button
@@ -101,7 +101,7 @@
             </div>
             <span class="wc-member-name">{{ displayName(userId) }}</span>
             <button
-              v-if="authStore.isAdmin"
+              v-if="authStore.isAdminOfActiveServer"
               class="wc-remove-btn"
               title="Remove member"
               @click="handleRemoveMember(group.groupId, userId)"
@@ -130,6 +130,7 @@ import { ref, watch, onMounted, onUnmounted } from "vue";
 import { useWhisperStore } from "../stores/whisper";
 import { useRoomStore } from "../stores/room";
 import { useAuthStore } from "../stores/auth";
+import { useServerStore } from "../stores/server";
 import { usePresence } from "../composables/usePresence";
 import { useLiveKit } from "../composables/useLiveKit";
 import { usePtt } from "../composables/usePtt";
@@ -139,6 +140,7 @@ import { avatarColor, initials } from "../utils/avatar";
 const whisperStore = useWhisperStore();
 const roomStore = useRoomStore();
 const authStore = useAuthStore();
+const serverStore = useServerStore();
 const {
   createWhisperGroup,
   addWhisperMember,
@@ -176,7 +178,7 @@ function handleCreate(): void {
     createError.value = "Name required";
     return;
   }
-  createWhisperGroup(createName.value.trim(), createVisibility.value).catch(
+  createWhisperGroup(serverStore.activeServerId!, createName.value.trim(), createVisibility.value).catch(
     (e) => {
       createError.value = String(e);
     },

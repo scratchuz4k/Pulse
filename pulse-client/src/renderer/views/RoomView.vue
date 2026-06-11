@@ -36,8 +36,8 @@
                   :key="p.connectionId"
                   class="ch-member"
                   :class="{ speaking: activeSpeakers.includes(p.userId), 'ps-active': p.userId === roomStore.prioritySpeakerId }"
-                  :draggable="authStore.isAdmin"
-                  @dragstart="authStore.isAdmin && onParticipantDragStart($event, p.userId)"
+                  :draggable="authStore.isAdminOfActiveServer"
+                  @dragstart="authStore.isAdminOfActiveServer && onParticipantDragStart($event, p.userId)"
                 >
                   <div class="ch-av-wrap">
                     <span class="ch-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
@@ -59,7 +59,7 @@
                     <path d="M10 13H8a2 2 0 01-2-2v-1"/>
                   </svg>
                   <button
-                    v-if="authStore.isAdmin"
+                    v-if="authStore.isAdminOfActiveServer"
                     class="ch-ps-btn"
                     :class="{ 'ch-ps-btn--active': p.userId === roomStore.prioritySpeakerId }"
                     :title="p.userId === roomStore.prioritySpeakerId ? 'Remove priority speaker' : 'Assign priority speaker'"
@@ -91,8 +91,8 @@
                     v-for="p in room.participants"
                     :key="p.userId"
                     class="ch-member"
-                    :draggable="authStore.isAdmin"
-                    @dragstart="authStore.isAdmin && onParticipantDragStart($event, p.userId)"
+                    :draggable="authStore.isAdminOfActiveServer"
+                    @dragstart="authStore.isAdminOfActiveServer && onParticipantDragStart($event, p.userId)"
                   >
                     <span class="ch-av" :style="{ background: avatarColor(p.displayName) }">{{ initials(p.displayName) }}</span>
                     <span class="ch-name">{{ p.displayName }}</span>

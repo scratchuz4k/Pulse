@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useServerStore } from '../stores/server'
 import LoginView from '../views/LoginView.vue'
 import DashBoard from '../views/DashBoard.vue'
 import ServerTemplate from '../layouts/ServerTemplate.vue'
@@ -43,5 +44,8 @@ router.beforeEach((to) => {
   const authStore = useAuthStore()
   if (to.meta.requiresAuth && !authStore.accessToken) {
     return '/login'
+  }
+  if (to.path.startsWith('/server') && !useServerStore().activeServerId) {
+    return '/dashboard'
   }
 })

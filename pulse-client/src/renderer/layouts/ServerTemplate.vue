@@ -98,13 +98,19 @@ import { onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MainTemplate from "@renderer/layouts/MainTemplate.vue";
 import { usePresence } from '@renderer/composables/usePresence'
+import { useServerStore } from '@renderer/stores/server'
 import { SERVER_URL } from '@renderer/utils/config'
 
 const route = useRoute()
 const router = useRouter()
 const { connect, fetchRooms } = usePresence()
+const serverStore = useServerStore()
 
 onMounted(() => {
+  if (!serverStore.activeServerId) {
+    router.push('/dashboard')
+    return
+  }
   connect(SERVER_URL)
     .then(() => fetchRooms(SERVER_URL))
     .catch(e => console.error('[ServerTemplate] presence init:', e))

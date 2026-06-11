@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 import { useRoomStore } from '../stores/room'
 import { useWhisperStore, type WhisperGroupEntry } from '../stores/whisper'
 import { useUsersStore } from '../stores/users'
+import { useServerStore } from '../stores/server'
 import { useLiveKit } from './useLiveKit'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -16,6 +17,7 @@ const connectionState = ref<ConnectionState>('disconnected')
 export function usePresence() {
   const authStore = useAuthStore()
   const roomStore = useRoomStore()
+  const serverStore = useServerStore()
 
   async function connect(serverUrl: string): Promise<void> {
     if (hubConnection && hubConnection.state === signalR.HubConnectionState.Connected) {
@@ -100,7 +102,7 @@ export function usePresence() {
       const { disconnectWhisper } = useLiveKit()
       const whisperStore = useWhisperStore()
       await disconnectWhisper(payload.groupId)
-      if (!useAuthStore().isAdmin) {
+      if (!useAuthStore().isAdminOfActiveServer) {
         whisperStore.removeGroup(payload.groupId)
       }
     })
@@ -121,11 +123,6 @@ export function usePresence() {
       useUsersStore().setUsers(list)
     })
 
-    hubConnection.on('YouAreAdmin', () => {
-      useAuthStore().isAdmin = true
-    })
-
-
     hubConnection.onreconnecting(() => {
       connectionState.value = 'connecting'
     })
@@ -133,12 +130,7 @@ export function usePresence() {
     hubConnection.onreconnected(() => {
       connectionState.value = 'connected'
       if (lastServerUrl) {
-        fetch(`${lastServerUrl}/rooms`, {
-          headers: { Authorization: `Bearer ${authStore.accessToken}` }
-        })
-          .then(r => r.json())
-          .then((list: { id: number; name: string; participants: { displayName: string; userId: string }[] }[]) => roomStore.setRoomList(list))
-          .catch(e => console.error('[usePresence] reconnect room refresh failed:', e))
+        fetchRooms(lastServerUrl).catch(e => console.error('[usePresence] reconnect room refresh failed:', e))
       }
     })
 
@@ -149,12 +141,6 @@ export function usePresence() {
     try {
       await hubConnection.start()
       connectionState.value = 'connected'
-      fetch(`${serverUrl}/rooms`, {
-        headers: { Authorization: `Bearer ${authStore.accessToken}` }
-      })
-        .then(r => r.json())
-        .then((list: { id: number; name: string; participants: { displayName: string; userId: string }[] }[]) => roomStore.setRoomList(list))
-        .catch(e => console.error('[usePresence] failed to load rooms:', e))
     } catch (err) {
       console.error('SignalR connection error:', err)
       connectionState.value = 'error'
@@ -191,7 +177,9 @@ export function usePresence() {
   }
 
   async function createRoom(serverUrl: string, name: string): Promise<void> {
-    const response = await fetch(`${serverUrl}/rooms`, {
+    const serverId = serverStore.activeServerId
+    if (!serverId) throw new Error('No active server selected.')
+    const response = await fetch(`${serverUrl}/servers/${serverId}/rooms`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -200,9 +188,7 @@ export function usePresence() {
       body: JSON.stringify({ name })
     })
     if (!response.ok) {
-      if (response.status === 409) {
-        throw new Error('A room with that name already exists.')
-      }
+      if (response.status === 409) throw new Error('A room with that name already exists.')
       throw new Error('Failed to create room.')
     }
   }
@@ -218,16 +204,18 @@ export function usePresence() {
   }
 
   async function fetchRooms(serverUrl: string): Promise<void> {
-    const res = await fetch(`${serverUrl}/rooms`, {
+    const serverId = serverStore.activeServerId
+    if (!serverId) return
+    const res = await fetch(`${serverUrl}/servers/${serverId}/rooms`, {
       headers: { Authorization: `Bearer ${authStore.accessToken}` }
     })
     const list = await res.json()
     roomStore.setRoomList(list)
   }
 
-  async function createWhisperGroup(name: string, visibility: string): Promise<void> {
+  async function createWhisperGroup(serverId: number, name: string, visibility: string): Promise<void> {
     if (!hubConnection) return
-    await hubConnection.invoke('CreateWhisperGroup', name, visibility)
+    await hubConnection.invoke('CreateWhisperGroup', serverId, name, visibility)
   }
 
   async function addWhisperMember(groupId: string, targetUserId: string): Promise<void> {

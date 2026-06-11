@@ -1,12 +1,19 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useServerStore } from './server'
 
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(null)
   const refreshToken = ref<string | null>(null)
   const userId = ref<string | null>(null)
   const displayName = ref<string | null>(null)
-  const isAdmin = ref(false)
+
+  const isAdminOfActiveServer = computed(() => {
+    const serverStore = useServerStore()
+    const active = serverStore.activeServer
+    if (!active || !userId.value) return false
+    return active.ownerId === userId.value
+  })
 
   function setTokens(
     access: string,
@@ -25,8 +32,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken.value = null
     userId.value = null
     displayName.value = null
-    isAdmin.value = false
   }
 
-  return { accessToken, refreshToken, userId, displayName, isAdmin, setTokens, clearTokens }
+  return { accessToken, refreshToken, userId, displayName, isAdminOfActiveServer, setTokens, clearTokens }
 })
