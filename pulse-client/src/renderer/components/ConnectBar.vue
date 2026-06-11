@@ -190,6 +190,7 @@ const {
   applyMuteToWhisperRooms,
   applyDeafenToWhisperRooms,
   isDeafened,
+  isExplicitlyMuted,
 } = useLiveKit();
 const { isPttMode, pttBinding, isCapturing, startCapture } = usePtt();
 
@@ -199,6 +200,7 @@ const prevMicEnabled = ref(false);
 async function handleToggleMic(): Promise<void> {
   if (isDeafened.value) return;
   await toggleMic();
+  isExplicitlyMuted.value = !isMicEnabled.value;
   await applyMuteToWhisperRooms(!isMicEnabled.value);
   await broadcastMuteChanged(!isMicEnabled.value);
 }
@@ -215,6 +217,7 @@ async function handleToggleDeafen(): Promise<void> {
     await broadcastDeafenChanged(true);
   } else {
     isDeafened.value = false;
+    isExplicitlyMuted.value = false;
     document.querySelectorAll<HTMLAudioElement>('audio[id^="livekit-audio-"]').forEach((el) => { el.volume = 1; });
     applyDeafenToWhisperRooms(false);
     if (prevMicEnabled.value && !isMicEnabled.value) await toggleMic();
@@ -229,6 +232,7 @@ async function handleLeave(): Promise<void> {
   if (roomStore.currentRoomName) await leaveRoom(roomStore.currentRoomName);
   roomStore.clearRoom();
   isDeafened.value = false;
+  isExplicitlyMuted.value = false;
   prevMicEnabled.value = false;
 }
 
@@ -238,6 +242,7 @@ async function handleLogout(): Promise<void> {
   await disconnect();
   roomStore.clearRoom();
   isDeafened.value = false;
+  isExplicitlyMuted.value = false;
   prevMicEnabled.value = false;
   await logout();
   router.push("/login");

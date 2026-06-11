@@ -163,7 +163,7 @@ const whisperStore = useWhisperStore()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const { createWhisperGroup, addWhisperMember, removeWhisperMember, dissolveWhisperGroup, broadcastMuteChanged } = usePresence()
-const { getWhisperRoom, setWhisperOpenMicCache, setMainMicEnabled, isDeafened, isMicEnabled } = useLiveKit()
+const { getWhisperRoom, setWhisperOpenMicCache, setMainMicEnabled, isDeafened, isExplicitlyMuted } = useLiveKit()
 const { isPttMode } = usePtt()
 const usersStore = useUsersStore()
 
@@ -285,7 +285,7 @@ onMounted(() => {
   document.addEventListener('keydown', onCaptureKeydown, true)
 
   window.pulseApi.onWhisperPttKeyDown(async ({ groupId, mode }) => {
-    if (isDeafened.value || (!isMicEnabled.value && !isPttMode.value)) return
+    if (isDeafened.value || isExplicitlyMuted.value) return
     const room = getWhisperRoom(groupId)
     await room?.localParticipant.setMicrophoneEnabled(true)
     if (mode === 'inclusive' && isPttMode.value) {

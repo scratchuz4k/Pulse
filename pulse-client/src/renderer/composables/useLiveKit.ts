@@ -19,6 +19,7 @@ const activeInputId = ref<string>('')
 const activeOutputId = ref<string>('')
 const prioritySpeakerId = ref<string | null>(null)
 const isDeafened = ref(false)
+const isExplicitlyMuted = ref(false)
 
 async function refreshDevices(unlockLabels: boolean = true): Promise<void> {
   // getUserMedia must be called from this context to unlock device labels
@@ -310,6 +311,6 @@ export function useLiveKit() {
     prioritySpeakerId, setPrioritySpeaker,
     connectWhisper, disconnectWhisper, getWhisperRoom, setMainMicEnabled,
     applyMuteToWhisperRooms, applyDeafenToWhisperRooms, setWhisperOpenMicCache,
-    isDeafened,
+    isDeafened, isExplicitlyMuted,
   }
 }
