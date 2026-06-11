@@ -208,8 +208,12 @@ export function useLiveKit() {
     room.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
       const identities = speakers.map(s => s.identity)
       const localId = room.localParticipant.identity
-      if (room.localParticipant.isSpeaking && !identities.includes(localId)) {
+      if (!isExplicitlyMuted.value && !isDeafened.value && room.localParticipant.isSpeaking && !identities.includes(localId)) {
         identities.push(localId)
+      } else {
+        // Remove local from list if muted/deafened regardless of what server reports
+        const idx = identities.findIndex(id => id.toLowerCase() === localId.toLowerCase())
+        if (idx !== -1 && (isExplicitlyMuted.value || isDeafened.value)) identities.splice(idx, 1)
       }
       useWhisperStore().setSpeakers(groupId, identities)
     })
@@ -218,7 +222,8 @@ export function useLiveKit() {
       const localId = room.localParticipant.identity
       const store = useWhisperStore()
       const current = store.speakers.get(groupId) ?? []
-      store.setSpeakers(groupId, speaking
+      const effectiveSpeaking = speaking && !isExplicitlyMuted.value && !isDeafened.value
+      store.setSpeakers(groupId, effectiveSpeaking
         ? current.includes(localId) ? current : [...current, localId]
         : current.filter(id => id !== localId)
       )
@@ -241,7 +246,8 @@ export function useLiveKit() {
     // Poll local speaking state as fallback when IsSpeakingChanged doesn't fire
     speakingPoller = setInterval(() => {
       const localId = room.localParticipant.identity
-      const speaking = room.localParticipant.isSpeaking
+      // Never show local as speaking when globally muted or deafened
+      const speaking = !isExplicitlyMuted.value && !isDeafened.value && room.localParticipant.isSpeaking
       const store = useWhisperStore()
       const current = store.speakers.get(groupId) ?? []
       const inList = current.some(id => id.toLowerCase() === localId.toLowerCase())
@@ -286,9 +292,14 @@ export function useLiveKit() {
 
   // Mute/unmute whisper mics — respects per-group open mic setting on unmute
   async function applyMuteToWhisperRooms(muted: boolean): Promise<void> {
+    const store = useWhisperStore()
     for (const [groupId, room] of whisperRooms) {
       if (muted) {
         await room.localParticipant.setMicrophoneEnabled(false)
+        // Clear local speaking indicator immediately — LiveKit isSpeaking lags behind mic disable
+        const localId = room.localParticipant.identity
+        const current = store.speakers.get(groupId) ?? []
+        store.setSpeakers(groupId, current.filter(id => id.toLowerCase() !== localId.toLowerCase()))
       } else {
         if (whisperOpenMic.get(groupId)) await room.localParticipant.setMicrophoneEnabled(true, {
           noiseSuppression: true,
