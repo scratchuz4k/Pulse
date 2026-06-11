@@ -12,20 +12,6 @@ let hubConnection: signalR.HubConnection | null = null
 let lastServerUrl: string | null = null
 const connectionState = ref<ConnectionState>('disconnected')
 
-async function applyWhisperOpenMic(
-  groupId: string,
-  getWhisperRoom: ReturnType<typeof useLiveKit>['getWhisperRoom'],
-  setWhisperOpenMicCache: ReturnType<typeof useLiveKit>['setWhisperOpenMicCache']
-): Promise<void> {
-  const openMic = await window.pulseApi.getWhisperOpenMic(groupId)
-  setWhisperOpenMicCache(groupId, openMic)
-  if (openMic) {
-    const { isDeafened, isExplicitlyMuted } = useLiveKit()
-    if (isDeafened.value || isExplicitlyMuted.value) return
-    const room = getWhisperRoom(groupId)
-    await room?.localParticipant?.setMicrophoneEnabled(true)
-  }
-}
 
 export function usePresence() {
   const authStore = useAuthStore()
@@ -97,19 +83,17 @@ export function usePresence() {
     hubConnection.on('JoinWhisperGroups', async (tokenList: Array<{
       groupId: string; groupName: string; liveKitToken: string; liveKitHost: string
     }>) => {
-      const { connectWhisper, getWhisperRoom, setWhisperOpenMicCache } = useLiveKit()
+      const { connectWhisper } = useLiveKit()
       for (const entry of tokenList) {
         await connectWhisper(entry.groupId, entry.liveKitToken, entry.liveKitHost)
-        await applyWhisperOpenMic(entry.groupId, getWhisperRoom, setWhisperOpenMicCache)
       }
     })
 
     hubConnection.on('WhisperGroupMemberAdded', async (payload: {
       groupId: string; groupName: string; liveKitToken: string; liveKitHost: string
     }) => {
-      const { connectWhisper, getWhisperRoom, setWhisperOpenMicCache } = useLiveKit()
+      const { connectWhisper } = useLiveKit()
       await connectWhisper(payload.groupId, payload.liveKitToken, payload.liveKitHost)
-      await applyWhisperOpenMic(payload.groupId, getWhisperRoom, setWhisperOpenMicCache)
     })
 
     hubConnection.on('WhisperGroupMemberRemoved', async (payload: { groupId: string }) => {

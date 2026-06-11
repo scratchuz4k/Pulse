@@ -61,6 +61,20 @@
               </kbd>
             </div>
           </label>
+          <label class="setting-label">
+            Whisper PTT Key
+            <div class="ptt-key-row">
+              <kbd
+                class="ptt-key"
+                :class="{ capturing: isCapturingWhisper }"
+                tabindex="0"
+                @click="startWhisperCapture"
+              >
+                {{ isCapturingWhisper ? "Press a key…" : (whisperPttBinding?.label ?? "Click to bind") }}
+              </kbd>
+              <button v-if="whisperPttBinding" class="ptt-clear" @click="clearWhisperPtt">×</button>
+            </div>
+          </label>
         </div>
       </div>
     </div>
@@ -192,7 +206,7 @@ const {
   isDeafened,
   isExplicitlyMuted,
 } = useLiveKit();
-const { isPttMode, pttBinding, isCapturing, startCapture } = usePtt();
+const { isPttMode, pttBinding, isCapturing, startCapture, whisperPttBinding, isCapturingWhisper, startWhisperCapture, clearWhisperPtt } = usePtt();
 
 const showSettings = ref(false);
 const prevMicEnabled = ref(false);
@@ -381,6 +395,19 @@ kbd.ptt-key.capturing {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
+button.ptt-clear {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--c-ink-4);
+  cursor: pointer;
+  font-size: 15px;
+  padding: 0;
+  line-height: 1;
+}
+button.ptt-clear:hover { color: var(--live); }
 
 /* ── Bar ── */
 .cb-bar {

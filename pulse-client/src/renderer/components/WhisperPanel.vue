@@ -29,7 +29,7 @@
         v-for="group in whisperStore.groups"
         :key="group.groupId"
         class="whisper-card"
-        :class="{ 'is-member': group.isMember, 'drag-over': dragOverGroup === group.groupId, 'is-transmitting': isTransmitting(group.groupId) }"
+        :class="{ 'is-member': group.isMember, 'drag-over': dragOverGroup === group.groupId }"
         @dragover.prevent="authStore.isAdmin && (dragOverGroup = group.groupId)"
         @dragleave="dragOverGroup = null"
         @drop.prevent="authStore.isAdmin && onDrop($event, group.groupId)"
@@ -37,7 +37,6 @@
         <!-- Card header -->
         <div class="wc-head">
           <span class="wc-name">{{ group.name }}</span>
-          <span v-if="isTransmitting(group.groupId)" class="wc-tx-badge">● TX</span>
           <span
             class="wc-vis-badge"
             :class="{
@@ -105,44 +104,6 @@
         </div>
 
 
-        <!-- Member controls — only relevant when in a voice channel -->
-        <div v-if="group.isMember && roomStore.currentRoomName" class="wc-transmit">
-          <label class="wc-open-mic-label">
-            <input
-              type="checkbox"
-              :checked="openMicGroups[group.groupId] ?? false"
-              @change="handleOpenMicChange(group.groupId, ($event.target as HTMLInputElement).checked)"
-            />
-            Open mic
-          </label>
-          <div class="wc-ptt-row">
-            <span class="wc-ptt-label">PTT</span>
-            <button
-              v-if="capturingPttFor === group.groupId"
-              class="wc-ptt-bind wc-ptt-bind--capturing"
-            >Press a key…</button>
-            <button
-              v-else
-              class="wc-ptt-bind"
-              @click="startPttCapture(group.groupId)"
-            >{{ pttKeys[group.groupId] ?? 'Bind key' }}</button>
-            <button
-              v-if="pttKeys[group.groupId]"
-              class="wc-ptt-clear"
-              @click="clearPttKey(group.groupId)"
-            >×</button>
-          </div>
-          <div v-if="pttKeys[group.groupId]" class="wc-ptt-modes">
-            <button
-              :class="['wc-ptt-mode', pttModes[group.groupId] !== 'exclusive' && 'active']"
-              @click="setPttMode(group.groupId, 'inclusive')"
-            >Inclusive</button>
-            <button
-              :class="['wc-ptt-mode', pttModes[group.groupId] === 'exclusive' && 'active']"
-              @click="setPttMode(group.groupId, 'exclusive')"
-            >Exclusive</button>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -163,7 +124,7 @@ const whisperStore = useWhisperStore()
 const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const { createWhisperGroup, addWhisperMember, removeWhisperMember, dissolveWhisperGroup, broadcastMuteChanged } = usePresence()
-const { getWhisperRoom, setWhisperOpenMicCache, setMainMicEnabled, isDeafened, isExplicitlyMuted } = useLiveKit()
+const { getWhisperRoom, setMainMicEnabled, isDeafened, isExplicitlyMuted } = useLiveKit()
 const { isPttMode } = usePtt()
 const usersStore = useUsersStore()
 
@@ -171,22 +132,12 @@ const createName = ref('')
 const dragOverGroup = ref<string | null>(null)
 const createVisibility = ref<'hidden' | 'existence' | 'full'>('hidden')
 const createError = ref('')
-const openMicGroups = ref<Record<string, boolean>>({})
 const dissolvePending = ref<string | null>(null)
-const pttKeys = ref<Record<string, string>>({})       // groupId -> label
-const pttModes = ref<Record<string, 'inclusive' | 'exclusive'>>({})
-const capturingPttFor = ref<string | null>(null)
 
 
 function isSpeaking(groupId: string, userId: string): boolean {
   const lower = userId.toLowerCase()
   return (whisperStore.speakers.get(groupId) ?? []).some(id => id.toLowerCase() === lower)
-}
-
-function isTransmitting(groupId: string): boolean {
-  if (!openMicGroups.value[groupId]) return false
-  const myId = authStore.userId?.toLowerCase()
-  return !!myId && (whisperStore.speakers.get(groupId) ?? []).some(id => id.toLowerCase() === myId)
 }
 
 function displayName(userId: string): string {
@@ -222,93 +173,31 @@ function handleRemoveMember(groupId: string, userId: string): void {
   removeWhisperMember(groupId, userId).catch(e => { createError.value = String(e) })
 }
 
-async function handleOpenMicChange(groupId: string, enabled: boolean): Promise<void> {
-  openMicGroups.value[groupId] = enabled
-  setWhisperOpenMicCache(groupId, enabled)
-  window.pulseApi.setWhisperOpenMic(groupId, enabled)
-  const whisperRoom = getWhisperRoom(groupId)
-  const blocked = isDeafened.value || isExplicitlyMuted.value
-  await whisperRoom?.localParticipant?.setMicrophoneEnabled(enabled && !blocked)
-}
-
-function loadGroupSettings(groupId: string): void {
-  window.pulseApi.getWhisperOpenMic(groupId).then(v => {
-    openMicGroups.value[groupId] = v
-    setWhisperOpenMicCache(groupId, v)
-  })
-  window.pulseApi.getWhisperPttKey(groupId).then(v => {
-    if (v) pttKeys.value[groupId] = v.label
-  })
-  window.pulseApi.getWhisperPttMode(groupId).then(v => {
-    pttModes.value[groupId] = v
-  })
-}
-
-function startPttCapture(groupId: string): void {
-  capturingPttFor.value = groupId
-}
-
-function clearPttKey(groupId: string): void {
-  window.pulseApi.clearWhisperPttKey(groupId)
-  delete pttKeys.value[groupId]
-  delete pttModes.value[groupId]
-}
-
-async function setPttMode(groupId: string, mode: 'inclusive' | 'exclusive'): Promise<void> {
-  pttModes.value[groupId] = mode
-  await window.pulseApi.setWhisperPttMode(groupId, mode)
-}
-
-function onCaptureKeydown(e: KeyboardEvent): void {
-  const groupId = capturingPttFor.value
-  if (!groupId) return
-  e.preventDefault()
-  e.stopPropagation()
-  const label = e.key.length === 1 ? e.key.toUpperCase() : e.code
-  window.pulseApi.setWhisperPttKeyByCode(groupId, e.code, label).then(ok => {
-    if (ok) {
-      pttKeys.value[groupId] = label
-      if (!pttModes.value[groupId]) pttModes.value[groupId] = 'inclusive'
-    }
-    capturingPttFor.value = null
-  })
-}
 
 onMounted(() => {
-  for (const group of whisperStore.groups) loadGroupSettings(group.groupId)
-
-  watch(() => whisperStore.groups, (groups) => {
-    for (const group of groups) {
-      if (openMicGroups.value[group.groupId] === undefined) loadGroupSettings(group.groupId)
-    }
-  }, { deep: true })
-
-  document.addEventListener('keydown', onCaptureKeydown, true)
-
-  window.pulseApi.onWhisperPttKeyDown(async ({ groupId, mode }) => {
+  window.pulseApi.onWhisperPttKeyDown(async () => {
     if (isDeafened.value || isExplicitlyMuted.value) return
-    const room = getWhisperRoom(groupId)
-    await room?.localParticipant.setMicrophoneEnabled(true)
-    if (mode === 'inclusive' && isPttMode.value) {
-      await setMainMicEnabled(true)
-      await broadcastMuteChanged(false)
+    const myGroups = whisperStore.myGroups
+    if (myGroups.length === 0) return
+    await setMainMicEnabled(false)
+    await broadcastMuteChanged(true)
+    for (const group of myGroups) {
+      await getWhisperRoom(group.groupId)?.localParticipant.setMicrophoneEnabled(true)
     }
   })
 
-  window.pulseApi.onWhisperPttKeyUp(async ({ groupId }) => {
-    const room = getWhisperRoom(groupId)
-    const openMic = openMicGroups.value[groupId] ?? false
-    await room?.localParticipant.setMicrophoneEnabled(openMic)
-    const mode = pttModes.value[groupId] ?? 'inclusive'
-    if (mode === 'inclusive' && isPttMode.value) {
-      await setMainMicEnabled(false)
-      await broadcastMuteChanged(true)
+  window.pulseApi.onWhisperPttKeyUp(async () => {
+    const myGroups = whisperStore.myGroups
+    for (const group of myGroups) {
+      await getWhisperRoom(group.groupId)?.localParticipant.setMicrophoneEnabled(false)
     }
+    const restoreMain = !isPttMode.value && !isExplicitlyMuted.value && !isDeafened.value
+    await setMainMicEnabled(restoreMain)
+    await broadcastMuteChanged(!restoreMain)
   })
 })
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', onCaptureKeydown, true)
   window.pulseApi.removeWhisperPttListeners()
 })
 </script>
@@ -434,102 +323,6 @@ onUnmounted(() => {
 .wc-member-count {
   font-size: 11px;
   color: var(--c-ink-4);
-}
-.wc-transmit {
-  margin-top: 4px;
-}
-.wc-open-mic-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--c-ink-3);
-  cursor: pointer;
-  user-select: none;
-}
-.wc-open-mic-label input[type="checkbox"] {
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-.wc-ptt-row {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 6px;
-}
-.wc-ptt-label {
-  font-size: 11px;
-  color: var(--c-ink-4);
-  flex: 0 0 auto;
-}
-.wc-ptt-bind {
-  flex: 1 1 auto;
-  height: 22px;
-  padding: 0 8px;
-  border: 1px solid var(--c-border-2);
-  border-radius: var(--radius-sm);
-  background: var(--c-bg);
-  color: var(--c-ink);
-  font-size: 11px;
-  font-family: inherit;
-  cursor: pointer;
-  text-align: left;
-}
-.wc-ptt-bind--capturing {
-  border-color: var(--accent);
-  color: var(--accent);
-  animation: tx-pulse 0.8s ease-in-out infinite alternate;
-}
-.wc-ptt-clear {
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  border: none;
-  background: transparent;
-  color: var(--c-ink-4);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0;
-  line-height: 1;
-}
-.wc-ptt-clear:hover { color: var(--live); }
-.wc-ptt-modes {
-  display: flex;
-  gap: 4px;
-  margin-top: 4px;
-}
-.wc-ptt-mode {
-  flex: 1 1 50%;
-  height: 20px;
-  border: 1px solid var(--c-border-2);
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--c-ink-4);
-  font-size: 10px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: color 0.1s, border-color 0.1s, background 0.1s;
-}
-.wc-ptt-mode.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(99, 102, 241, 0.08);
-}
-.whisper-card.is-transmitting {
-  border-color: var(--live);
-  box-shadow: 0 0 0 2px rgba(240, 71, 71, 0.25);
-}
-.wc-tx-badge {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--live);
-  flex: 0 0 auto;
-  animation: tx-pulse 0.8s ease-in-out infinite alternate;
-}
-@keyframes tx-pulse {
-  from { opacity: 1; }
-  to { opacity: 0.4; }
 }
 .whisper-card.drag-over {
   border-color: var(--accent);

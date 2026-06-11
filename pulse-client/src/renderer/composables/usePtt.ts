@@ -23,19 +23,28 @@ export function codeToLabel(code: string, key: string): string {
 const isPttMode = ref(false)
 const pttBinding = ref<PttBinding | null>(null)
 const isCapturing = ref(false)
+const whisperPttBinding = ref<PttBinding | null>(null)
+const isCapturingWhisper = ref(false)
 let _initialized = false
 
 function onCaptureKeydown(e: KeyboardEvent): void {
-  if (!isCapturing.value) return
+  if (!isCapturing.value && !isCapturingWhisper.value) return
   if (e.repeat) return
   if (['Control', 'Alt', 'Shift', 'Meta', 'CapsLock'].includes(e.key)) return
   e.preventDefault()
   e.stopPropagation()
   const label = codeToLabel(e.code, e.key)
-  isCapturing.value = false
-  window.pulseApi.setPttKeyByCode(e.code, label).then(ok => {
-    if (ok) pttBinding.value = { label }
-  })
+  if (isCapturing.value) {
+    isCapturing.value = false
+    window.pulseApi.setPttKeyByCode(e.code, label).then(ok => {
+      if (ok) pttBinding.value = { label }
+    })
+  } else {
+    isCapturingWhisper.value = false
+    window.pulseApi.setWhisperPttKeyByCode(e.code, label).then(ok => {
+      if (ok) whisperPttBinding.value = { label }
+    })
+  }
 }
 
 export function usePtt() {
@@ -50,6 +59,9 @@ export function usePtt() {
       isPttMode.value = saved
       watch(isPttMode, (v) => { window.pulseApi.setPttMode(v) })
     })
+    window.pulseApi.getWhisperPttKey().then(saved => {
+      if (saved) whisperPttBinding.value = { label: saved }
+    })
 
     // Capture phase so we intercept before any other handler
     document.addEventListener('keydown', onCaptureKeydown, true)
@@ -59,5 +71,14 @@ export function usePtt() {
     isCapturing.value = true
   }
 
-  return { isPttMode, pttBinding, isCapturing, startCapture }
+  function startWhisperCapture(): void {
+    isCapturingWhisper.value = true
+  }
+
+  function clearWhisperPtt(): void {
+    window.pulseApi.clearWhisperPttKey()
+    whisperPttBinding.value = null
+  }
+
+  return { isPttMode, pttBinding, isCapturing, startCapture, whisperPttBinding, isCapturingWhisper, startWhisperCapture, clearWhisperPtt }
 }

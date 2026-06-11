@@ -13,15 +13,11 @@ startPttCapture: () => Promise<void>
   onPttKeyUp: (cb: () => void) => void
   onPttCaptured: (cb: (label: string) => void) => void
   removePttListeners: () => void
-  setWhisperOpenMic: (groupId: string, enabled: boolean) => Promise<void>
-  getWhisperOpenMic: (groupId: string) => Promise<boolean>
-  setWhisperPttKeyByCode: (groupId: string, code: string, label: string) => Promise<boolean>
-  getWhisperPttKey: (groupId: string) => Promise<{ keycode: number; label: string } | null>
-  clearWhisperPttKey: (groupId: string) => Promise<void>
-  setWhisperPttMode: (groupId: string, mode: 'inclusive' | 'exclusive') => Promise<void>
-  getWhisperPttMode: (groupId: string) => Promise<'inclusive' | 'exclusive'>
-  onWhisperPttKeyDown: (cb: (payload: { groupId: string; mode: 'inclusive' | 'exclusive' }) => void) => void
-  onWhisperPttKeyUp: (cb: (payload: { groupId: string }) => void) => void
+  setWhisperPttKeyByCode: (code: string, label: string) => Promise<boolean>
+  getWhisperPttKey: () => Promise<string | null>
+  clearWhisperPttKey: () => Promise<void>
+  onWhisperPttKeyDown: (cb: () => void) => void
+  onWhisperPttKeyUp: (cb: () => void) => void
   removeWhisperPttListeners: () => void
 }
 
