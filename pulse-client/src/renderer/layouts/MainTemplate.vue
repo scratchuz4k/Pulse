@@ -1,7 +1,7 @@
 <template>
-  <div class="app-root">
+  <div class="app-root" @click="switcherOpen = false">
     <div class="app-nav">
-      <button class="rail-logo" title="Dashboard" @click="router.push({ name: 'dashboard' })">
+      <button class="rail-logo" title="Dashboard" @click.stop="router.push({ name: 'dashboard' })">
         <svg
           viewBox="0 0 24 24"
           width="20"
@@ -15,8 +15,28 @@
           <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
         </svg>
       </button>
-      <div class="app-server-container">
-        <div class="app-server" @click="router.push('/server')">Ravengate</div>
+      <div class="app-server-container" @click.stop>
+        <button
+          class="app-server"
+          :title="serverStore.activeServer?.name ?? 'Select server'"
+          @click="switcherOpen = !switcherOpen"
+        >
+          {{ serverStore.activeServer?.name ?? '— select —' }}
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:6px">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        <div v-if="switcherOpen" class="server-dropdown">
+          <button
+            v-for="s in serverStore.servers"
+            :key="s.id"
+            class="server-dropdown-item"
+            :class="{ active: s.id === serverStore.activeServerId }"
+            @click="switchToServer(s.id)"
+          >{{ s.name }}</button>
+          <div class="server-dropdown-divider" />
+          <button class="server-dropdown-item" @click="router.push('/dashboard'); switcherOpen = false">Dashboard</button>
+        </div>
       </div>
     </div>
     <div class="app-shell">
@@ -26,9 +46,20 @@
   </div>
 </template>
 <script setup lang="ts">
-import { useRouter } from "vue-router";
-import ConnectBar from "../components/ConnectBar.vue";
-const router = useRouter();
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import ConnectBar from '../components/ConnectBar.vue'
+import { useServerStore } from '@renderer/stores/server'
+
+const router = useRouter()
+const serverStore = useServerStore()
+const switcherOpen = ref(false)
+
+function switchToServer(id: number): void {
+  serverStore.setActiveServer(id)
+  switcherOpen.value = false
+  router.push('/server')
+}
 </script>
 <style scoped>
 .app-root {
@@ -44,16 +75,19 @@ const router = useRouter();
   justify-content: start;
   width: 100%;
   flex: 0 0 52px;
-  overflow: hidden;
+  overflow: visible;
   background: var(--c-rail);
   padding: 0 16px;
   border-bottom: 1px solid var(--c-border);
+  position: relative;
+  z-index: 10;
 }
 .app-server-container {
   margin-left: 16px;
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
 }
 
 .app-server {
@@ -78,6 +112,48 @@ const router = useRouter();
 .app-server:hover {
   background: var(--c-side-2);
   border-color: var(--accent);
+}
+
+.server-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 180px;
+  background: var(--c-side);
+  border: 1px solid var(--c-border-2);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.server-dropdown-item {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-ink);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+.server-dropdown-item:hover {
+  background: var(--c-side-2);
+}
+.server-dropdown-item.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.server-dropdown-divider {
+  height: 1px;
+  background: var(--c-border);
+  margin: 4px 0;
 }
 
 /* ── Shell ── */
