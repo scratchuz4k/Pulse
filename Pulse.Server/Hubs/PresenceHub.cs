@@ -51,6 +51,11 @@ public class PresenceHub : Hub
     private static readonly ConcurrentDictionary<string, string>
         _userToConnection = new();
 
+    private record ConnectedUser(string UserId, string DisplayName);
+
+    private static readonly ConcurrentDictionary<string, ConnectedUser>
+        _connectedUsers = new(); // userId -> ConnectedUser
+
     // ── Admin helper ─────────────────────────────────────────────────────────
 
     private bool IsServerAdmin()
@@ -70,7 +75,10 @@ public class PresenceHub : Hub
                      ?? Context.User?.FindFirst("sub")?.Value ?? "";
         var displayName = Context.User?.FindFirst("displayName")?.Value ?? "Unknown";
         if (!string.IsNullOrEmpty(userId))
+        {
             _userToConnection[userId] = Context.ConnectionId;
+            _connectedUsers[userId] = new ConnectedUser(userId, displayName);
+        }
         var memberGroups = _whisperGroups.Values
             .Where(g => g.MemberUserIds.Contains(userId))
             .ToList();
@@ -89,6 +97,8 @@ public class PresenceHub : Hub
             await Clients.Caller.SendAsync("YouAreAdmin");
         var visibleGroups = BuildVisibleGroupsForUser(userId);
         await Clients.Caller.SendAsync("WhisperGroupsUpdated", visibleGroups);
+        await Clients.Caller.SendAsync("UsersUpdated", BuildUsersPayload());
+        await Clients.Others.SendAsync("UsersUpdated", BuildUsersPayload());
         await base.OnConnectedAsync();
     }
 
@@ -97,7 +107,11 @@ public class PresenceHub : Hub
         var userId = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                      ?? Context.User?.FindFirst("sub")?.Value ?? "";
         if (!string.IsNullOrEmpty(userId))
+        {
             _userToConnection.TryRemove(userId, out _);
+            _connectedUsers.TryRemove(userId, out _);
+            await Clients.Others.SendAsync("UsersUpdated", BuildUsersPayload());
+        }
 
         bool roomListChanged = false;
         foreach (var (roomName, room) in _rooms)
@@ -320,6 +334,9 @@ public class PresenceHub : Hub
 
     private static string? GetRoomForConnection(string connectionId) =>
         _connectionToRoom.TryGetValue(connectionId, out var r) ? r : null;
+
+    private static IEnumerable<object> BuildUsersPayload() =>
+        _connectedUsers.Values.Select(u => (object)new { userId = u.UserId, displayName = u.DisplayName });
 
     private async Task BroadcastRoomListAsync()
     {

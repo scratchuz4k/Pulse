@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useRoomStore } from '../stores/room'
 import { useWhisperStore, type WhisperGroupEntry } from '../stores/whisper'
+import { useUsersStore } from '../stores/users'
 import { useLiveKit } from './useLiveKit'
 
 type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
@@ -130,6 +131,10 @@ export function usePresence() {
     hubConnection.on('WhisperGroupsUpdated', (groupList: WhisperGroupEntry[]) => {
       const whisperStore = useWhisperStore()
       whisperStore.setGroups(groupList)
+    })
+
+    hubConnection.on('UsersUpdated', (list: { userId: string; displayName: string }[]) => {
+      useUsersStore().setUsers(list)
     })
 
     hubConnection.on('YouAreAdmin', () => {

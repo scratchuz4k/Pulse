@@ -123,6 +123,7 @@ import { useRoomStore } from '../stores/room'
 import { useAuthStore } from '../stores/auth'
 import { usePresence } from '../composables/usePresence'
 import { useLiveKit } from '../composables/useLiveKit'
+import { useUsersStore } from '../stores/users'
 import { avatarColor, initials } from '../utils/avatar'
 
 const whisperStore = useWhisperStore()
@@ -130,6 +131,7 @@ const roomStore = useRoomStore()
 const authStore = useAuthStore()
 const { createWhisperGroup, addWhisperMember, removeWhisperMember, dissolveWhisperGroup } = usePresence()
 const { getWhisperRoom, setWhisperOpenMicCache } = useLiveKit()
+const usersStore = useUsersStore()
 
 const createName = ref('')
 const dragOverGroup = ref<string | null>(null)
@@ -150,7 +152,9 @@ function isTransmitting(groupId: string): boolean {
 }
 
 function displayName(userId: string): string {
-  return roomStore.participants.find(p => p.userId === userId)?.displayName ?? userId
+  const inRoom = roomStore.participants.find(p => p.userId === userId)
+  if (inRoom) return inRoom.displayName
+  return usersStore.displayName(userId)
 }
 
 function handleCreate(): void {
